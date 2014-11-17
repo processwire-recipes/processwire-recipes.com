@@ -4,7 +4,9 @@
 
 PWR aims to supply short and concise instructions and snippets on how to solve particular problems or realize particular features in ProcessWire. 
 
-** tl;dr: Contribute via adding recipes to `/site/recipe-txt-files` **
+---
+**tl;dr: Contribute via adding recipes to `/site/recipe-txt-files`**
+---
 
 Recipes are structured as follows:
  
