@@ -1,0 +1,20 @@
+// ---------------------------------------------------------------
+//
+//  Base layout containers
+//
+// ---------------------------------------------------------------
+
+.inner {
+	@extend %clearfix;
+	position: relative;
+	margin: 0 auto;
+	padding: 25px;
+	max-width: 1140px;
+}
+
+.col-50 {
+	width: 48%;
+	margin: 0 1%;
+	float: left;
+	display: inline-block;
+}

@@ -1,0 +1,38 @@
+// ---------------------------------------------------------------
+//
+//  Main navigation
+//
+// ---------------------------------------------------------------
+
+.nav-main {
+	float: right;
+	margin: 0;
+	padding: 0;
+	width: 30%;
+
+	li {
+		display: block;
+		padding: 6px 9px;
+	}
+}
+
+.nav-main__item {
+	border-bottom: 1px solid $white;
+
+	&:first-child {
+		border-top: 1px solid $white;
+	}
+
+	a {
+		display: block;
+		color: $white;
+	}
+
+	&.nav-main__item--current {
+		background: $white;
+
+		a {
+			color: $blue;
+		}
+	}
+}

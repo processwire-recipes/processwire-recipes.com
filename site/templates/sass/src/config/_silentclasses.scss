@@ -1,0 +1,34 @@
+// ---------------------------------------------------------------
+//
+//  Silent helper classes
+//
+// ---------------------------------------------------------------
+
+%clearfix {
+	zoom:1;
+	&:before, &:after {
+		display: block;
+		overflow: hidden;
+		height: 0;
+		content: "";
+	}
+	&:after {
+		clear: both;
+	}
+}
+
+%hide_text {
+	color: transparent;
+	text-shadow: none;
+	font: 0/0 a;
+}
+
+%tag_style {
+	display: inline-block;
+	float: left;
+	margin: 0 0 4px 4px;
+	padding: 0 5px;
+	background: $blue;
+	color: $white;
+	text-decoration: none;
+}

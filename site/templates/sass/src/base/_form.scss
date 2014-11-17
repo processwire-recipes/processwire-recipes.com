@@ -1,0 +1,18 @@
+// ---------------------------------------------------------------
+//
+//  Input, form and button related styles
+//
+// ---------------------------------------------------------------
+
+input:focus {
+	outline: 0;
+	outline: none;
+}
+
+.btn {
+	display: inline-block;
+	margin-top: 20px;
+	padding: 12px;
+	border: 1px solid $blue;
+	text-decoration: none;
+}

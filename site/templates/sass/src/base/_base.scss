@@ -1,0 +1,22 @@
+// ---------------------------------------------------------------
+//
+//  Basic layout system, etc.
+//
+// ---------------------------------------------------------------
+
+
+html {
+	box-sizing: border-box;
+	position: relative;
+	min-height: 100%;
+	color: $black;
+}
+
+body {
+	min-height: 100%;
+	margin: 0 0 65px;
+}
+
+*, *:before, *:after {
+	box-sizing: inherit;
+}

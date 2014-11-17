@@ -1,0 +1,51 @@
+// ---------------------------------------------------------------
+//
+//  Module for listing recipes
+//
+// ---------------------------------------------------------------
+
+.module-recipelist {
+	@extend %clearfix;
+}
+
+.module-recipelist__list {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+
+	a {
+		text-decoration: none;
+	}
+}
+
+.recipelist__listitem {
+	@extend %clearfix;
+	padding: 6px;
+
+	&:nth-child(even) {
+		background: $lite_grey;
+	}
+}
+
+.module-recipelist__tags {
+	float: right;
+	max-width: 33%;
+
+	li {
+		display: inline;
+
+		&:first-child {
+			a {
+				margin-left: 0;
+			}
+		}
+	}
+}
+
+.module-recipelist__tags {
+
+	a {
+		@extend %tag_style;
+		margin-bottom: 0;
+	}
+}

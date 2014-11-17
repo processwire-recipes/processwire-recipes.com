@@ -1,0 +1,31 @@
+// ---------------------------------------------------------------
+//
+//  Site header
+//
+// ---------------------------------------------------------------
+
+.header-main {
+	width: 100%;
+	background: $blue;
+	color: $white;
+
+	a {
+		text-decoration: none;
+	}
+}
+
+.header-main__logo {
+	float: left;
+	margin: 0 0 1em;
+	padding: 0;
+	width: 60%;
+	font-size: 40px;
+
+	a {
+		color: $white;
+	}
+
+	.fa {
+		margin-right: 8px;
+	}
+}

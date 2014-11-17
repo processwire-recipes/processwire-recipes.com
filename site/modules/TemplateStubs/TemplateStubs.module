@@ -1,0 +1,354 @@
+<?php
+
+/**
+ * ProcessWire 'TemplateStubs' module
+ *
+ * @author Rasmus Schultz <http://mindplay.dk/>
+ */
+
+/**
+ * This module generates 
+ */
+class TemplateStubs extends WireData implements Module, ConfigurableModule
+{
+    /**
+     * @return array module meta-data
+     */
+    public static function getModuleInfo()
+    {
+        return array(
+            'title' => 'Template Stubs', 
+            'version' => 102,
+            'summary' => 'Generates API stubs for Templates - useful when working with an IDE.',
+            'singular' => true,
+            'autoload' => true,
+        );
+    }
+    
+    /**
+     * @var string namespace for template-types
+     */
+    public $namespace;
+
+    /**
+     * @var string class-name prefix for template-types
+     */
+    public $prefix = 'tpl_';
+    
+    /**
+     * @var (string|Closure)[] hash where field-type class-name => property-type (or function(Field $field) : string)
+     */
+    public static $return_types;
+    
+    /**
+     * @var string[] list of PHP pseudo-type names
+     * @see createStub()
+     */
+    public static $pseudo_types = array('int','string','float','bool','true','false','array','mixed');
+    
+    /**
+     * @var bool true, if changes were detected that require template stubs to be rebuilt
+     */
+    protected $must_rebuild = false;
+
+    /**
+     * Apply default configuration.
+     */
+    public function ___install()
+    {
+        wire('modules')->saveModuleConfigData($this->className(), array(
+            'namespace' => $this->namespace,
+            'prefix' => $this->prefix,
+        ));
+
+        $this->forceRebuild();
+    }
+
+    /**
+     * Initialize the module
+     */
+    public function init()
+    {
+        $module = $this;
+        
+        self::$return_types = array(
+            'FieldtypeComments' => 'CommentArray|Comment[]',
+            'FieldtypeRepeater' => 'RepeaterPageArray|Page[]',
+            'FieldtypeCheckbox' => 'int',
+            'FieldtypeDatetime' => 'int|string',
+            'FieldtypeImage' => function (Field $field) {
+                return $field->maxFiles == 1
+                    ? 'Pageimage'
+                    : 'Pageimages|Pageimage[]';
+            },
+            'FieldtypeFile' => function (Field $field) {
+                return $field->maxFiles == 1
+                    ? 'Pagefile'
+                    : 'Pagefiles|Pagefile[]';
+            },
+            'FieldtypeFloat' => 'float',
+            'FieldtypeInteger' => 'int',
+            'FieldtypeModule' => 'string',
+            'FieldtypePage' => function (Field $field) use ($module) {
+                $pageType = 'Page';
+                
+                if ($field->template_id) {
+                    $template = wire('templates')->get($field->template_id);
+                    
+                    $pageType = $module->getClassName($template->name);
+                }
+                
+                switch ($field->derefAsPage) {
+                    case FieldtypePage::derefAsPageArray:
+                        return "PageArray|{$pageType}[]";
+                    case FieldtypePage::derefAsPageOrFalse:
+                        return "{$pageType}|false";
+                    case FieldtypePage::derefAsPageOrNullPage:
+                        return "{$pageType}|NullPage";
+                    default:
+                        return 'mixed';
+                }
+            },
+            'FieldtypePassword' => 'Password',
+            // final fall-back types:
+            'FieldtypeText' => 'string',
+            'FieldtypeMulti' => 'array',
+        );
+    }
+    
+    /**
+     * Install hooks (only if the rendered Page is an admin-page)
+     */
+    public function ready()
+    {
+        if ($this->page->template == 'admin') {
+            // Hooks that raise the $must_rebuild flag:
+            $this->addHookAfter('Templates::save', $this, 'mustRebuild');
+            $this->addHookAfter('Fields::save', $this, 'mustRebuild');
+            $this->addHookAfter('ProcessModule::executeEdit', $this, 'mustRebuild');
+            
+            // Hooks for rebuild() after page-view and/or before redirect:
+            $this->addHookBefore('Session::redirect', $this, 'rebuild');
+            $this->addHookAfter('ProcessPageView::finished', $this, 'rebuild');
+        }
+    }
+
+    /**
+     * @param string $name the Template name for which to generate a class-name
+     *
+*@return string documentation stub class-name (without namespace)
+     */
+    public function getClassName($name)
+    {
+        return $this->prefix . strtr($name, '-', '_');
+    }
+
+    /**
+     * @param Field $field the Field from which to obtain a property-type
+     * @return string Page property-type for the given Field
+     */
+    protected function getPropertyType(Field $field)
+    {
+        $type = $field->type;
+        
+        foreach (self::$return_types as $field_type => $property_type) {
+            if ($type instanceof $field_type) {
+                return is_callable($property_type)
+                    ? $property_type($field)
+                    : $property_type;
+            }
+        }
+        
+        return 'mixed';
+    }
+    
+    /**
+     * @param Template|null $template the template for which to generate an API documentation stub (or NULL for "any")
+     * @param bool[] hash where keys are class-names
+     * @return string PHP stub code (documentation only)
+     */
+    protected function createStub(Template $template=null, & $types)
+    {
+        /**
+         * @var InputField $field
+         */
+
+        if ($template) {
+            // Generate a sub for a specific Template:
+            $stub = "/**\n * \"{$template->name}\" template\n *\n";
+            $class_name = $this->getClassName($template->name);
+            $fields = $template->fields;
+        } else {
+            // Generate the "any" template: (includes all Fields)
+            $stub = "/**\n * any template\n *\n";
+            $class_name = $this->getClassName('any');
+            $fields = wire()->fields;
+        }
+
+        foreach ($fields as $field) {
+            $name = $field->name;
+            $property_type = $this->getPropertyType($field);
+            
+            // index property-type declaration:
+            
+            preg_match_all('/\w+/', $property_type, $matches);
+            
+            foreach ($matches[0] as $type) {
+                if (! in_array($type, self::$pseudo_types)) {
+                    $types[$type] = true;
+                }
+            }
+            
+            // create documentation:
+            
+            $doc = "@property {$property_type} \${$name}";
+            $indent = strlen($doc) + 1;
+            $width = 100 - $indent;
+            
+            $description = wordwrap($field->get('description|label|name'), $width, "\n");
+            $description = str_replace("\n", "\n * " . str_repeat(' ', $indent), $description);
+            
+            $stub .= " * {$doc} {$description}\n";
+        }
+
+        $stub .= " */\nclass {$class_name} extends Page\n{}\n";
+        
+        return $stub;
+    }
+    
+    /**
+     * @return string documentation file output path
+     */
+    public function getOutputPath()
+    {
+        return dirname(__FILE__) . DIRECTORY_SEPARATOR . 'stubs.php';
+    }
+    
+    /**
+     * Raise a flag that triggers documentation rebuild at the end of the request
+     */
+    public function mustRebuild(HookEvent $event = null)
+    {
+        $this->must_rebuild = true;
+    }
+
+    /**
+     * Force an immediate rebuild of the template stubs
+     */
+    public function forceRebuild(HookEvent $event = null)
+    {
+        $this->must_rebuild = true;
+
+        $this->rebuild();
+    }
+
+    /**
+     * Rebuild the template stubs
+     *
+     * @param HookEvent|null $event Event object (unused)
+     */
+    public function rebuild(HookEvent $event = null)
+    {
+        /**
+         * @var Template $template
+         * @var bool[] $stubs hash where keys are class names
+         */
+        
+        if (false === $this->must_rebuild) {
+            return; // no changes were made, no rebuild necessary
+        }
+        
+        $docs = '';
+        
+        $types = array();
+        
+        foreach (wire('templates') as $template) {
+            $docs .= $this->createStub($template, $types) . "\n";
+        }
+
+        $docs .= $this->createStub(null, $types);
+
+        foreach (wire('templates') as $template) {
+            // filter template-types from the use-clause:
+            unset($types[$this->getClassName($template->name)]);
+        }
+
+        $time = date('Y-m-d H:i:s');
+
+        $stubs = "<?php\n\n"
+            . "/**\n * Generated by TemplateStubs module $time"
+            . "\n * This file may be overwritten at any time."
+            . "\n */\n\n";
+
+        if ($this->namespace) {
+            $stubs .= "namespace {$this->namespace};\n\n";
+
+            if (count($types)) {
+                $stubs .= "use " . implode(', ', array_keys($types)) . ";\n\n";
+            }
+        }
+
+        $stubs .= $docs;
+        
+        file_put_contents($this->getOutputPath(), $stubs);
+        
+        $this->must_rebuild = false;
+    }
+    
+    /**
+     * Builds the Module configuration form.
+     *
+     * @param array $data module configuration values
+     *
+     * @return InputfieldWrapper
+     */
+    static public function getModuleConfigInputfields(array $data)
+    {
+        $modules = Wire::getFuel('modules');
+        
+        $fields = new InputfieldWrapper();
+
+        // Display options:
+
+        $namespace = $modules->get('InputfieldText');
+        $namespace->label = 'Namespace';
+        $namespace->description = 'Optionally enter a namespace-name to apply to the generated stub class file.';
+        $namespace->attr('name', 'namespace');
+        $namespace->attr('value', isset($data['namespace']) ? $data['namespace'] : '');
+        $namespace->required = false;
+
+        $fields->append($namespace);
+
+        $prefix = $modules->get('InputfieldText');
+        $prefix->label = 'Prefix';
+        $prefix->description = 'Optionally enter a class-name prefix to apply to generated stub classes.';
+        $prefix->attr('name', 'prefix');
+        $prefix->attr('value', isset($data['prefix']) ? $data['prefix'] : '');
+        $prefix->required = false;
+
+        $fields->append($prefix);
+
+        // Display information:
+        
+        $info = wire('modules')->get('InputfieldMarkup');
+        
+        $output_path = wire('modules')->TemplateStubs->getOutputPath();
+        
+        $info->markupText = '<h2>TemplateStubs</h2>'
+            . '<p>Documentation stubs for Templates will be written to:</p>'
+            . '<pre>' . htmlspecialchars($output_path) . '</pre>';
+        
+        $fields->append($info);
+
+        // Display source-code:
+        
+        $source = wire('modules')->get('InputfieldMarkup');
+        
+        $source->markupText = '<h2>Current Source File</h2>'
+            . highlight_file($output_path, true);
+        
+        $fields->append($source);
+
+        return $fields;
+    }
+}

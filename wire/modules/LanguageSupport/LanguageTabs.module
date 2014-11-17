@@ -1,0 +1,140 @@
+<?php
+
+/**
+ * ProcessWire Language Field Tabs
+ *
+ * Organizes Language Fields into tabs for a cleaner easier to use interface
+ *
+ * By Adamspruijt and Ryan Cramer, Copyright 2013/2014
+ * 
+ * For ProcessWire 2.x 
+ * Copyright (C) 2013 by Ryan Cramer 
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * 
+ *
+ */
+
+class LanguageTabs extends WireData implements Module {
+
+	public static function getModuleInfo() {
+		return array(
+			'title' => 'Languages Support - Tabs',
+			'version' => 111,
+			'summary' => 'Organizes multi-language fields into tabs for a cleaner easier to use interface.',
+			'author' => 'adamspruijt, ryan', 
+			'singular' => true,
+			'autoload' => "template=admin",
+			'requires' => 'LanguageSupportFields'
+		);
+	}
+
+	/**
+	 * Temporary storage of tabs created from addTab() method
+	 * 
+	 * @var array of strings
+	 * 
+	 */
+	protected $tabs = array();
+
+	/**
+	 * Add hooks, setup JS config, and determine active tab
+	 * 
+	 */
+	public function ready() {
+		if($this->wire('page')->template != 'admin') return;
+		$this->addHookAfter('InputfieldForm::render', $this, 'hookRenderInputfieldForm'); 
+
+		$language = null;
+		// allow for specifying language in your "edit" page link, from front-end
+		// so if you want to focus on the Spanish tabs when the user clicks "edit"
+		// from /es/path/to/page/, then you can by using a page edit link like:
+		// <a href='{$config->urls->admin}page/edit/?id=$page->id&language=$user->language'>Edit</a>
+		$id = (int) $this->input->get->language;
+		if($id) $language = $this->languages->get($id); 
+
+		// if language is not specified as a GET variable, then use the user's language
+		if(!$language || !$language->id) $language = $this->user->language; 
+
+		// determine the index of the tab for the user's language	
+		$activeTab = 0; 	
+		foreach($this->languages as $index => $lang) {
+			if($lang->id == $language->id) $activeTab = $index; 
+		}
+
+		$settings = array(
+			'labelOpen' => $this->_('Expand Language Tabs'),
+			'labelClose' => $this->_('Collapse/Convert Back to Tabs'), 
+			'activeTab' => $activeTab, 
+			); 
+
+		$this->wire('config')->js('LanguageTabs', $settings);
+	}
+
+	/**
+	 * Init language tabs in form immediately after form render
+	 * 
+	 * @param HookEvent $e
+	 * 
+	 */
+	public function hookRenderInputfieldForm(HookEvent $e) {
+		static $init = false;
+		if(!$init) {
+			$config = $this->wire('config');
+			$url = $config->urls->LanguageTabs;
+			$config->scripts->add($url . "LanguageTabs.js");
+			$config->styles->add($url . "LanguageTabs.css");
+			$init = true;
+		}
+		if(strpos($e->return, 'LanguageSupport') === false) return;
+		$id = $e->object->attr('id'); 
+		$e->return .= "<script>setupLanguageTabs($('#$id'));</script>";
+	}
+
+	/**
+	 * Clear any stored tabs
+	 * 
+	 */
+	public function resetTabs() {
+		$this->tabs = array();
+	}
+
+	/**
+	 * Add a new tab, to be later retrieved by renderTabs()
+	 * 
+	 * @param Inputfield $inputfield
+	 * @param Language $language
+	 * 
+	 */
+	public function addTab(Inputfield $inputfield, Language $language) {
+		$class = $inputfield->isEmpty() ? " class='langTabEmpty'" : "";
+		$title = $this->wire('sanitizer')->entities1($language->get('title|name'));
+		$id = $inputfield->attr('id'); 
+		$this->tabs[] = "<li><a$class href='#langTab_$id'>$title</a></li>";
+	}
+
+	/**
+	 * Render output for all added tabs
+	 * 
+	 * Note that if only 1 tab has been added, tabs won't be displayed (no point in it).
+	 * This method automatically calls resetTabs() after rendering. 
+	 * 
+	 * @param Inputfield $inputfield
+	 * @param $content Content that will have the tabs 
+	 * @return string Modified $content with tabs
+	 * 
+	 */
+	public function renderTabs(Inputfield $inputfield, $content) {
+		if(count($this->tabs) > 1) { 
+			$inputfield->wrapClass .= " hasLangTabs";
+			$inputfield->contentClass .= " langTabsContainer";
+			$tabs = implode('', $this->tabs);
+			$id = $inputfield->attr('id');
+			$content = "<div class='langTabs' id='langTabs_$id'><ul>$tabs</ul>$content</div>";
+		} else {
+			// do nothing, just return content because there was only 1 tab (no render necessary)
+		}
+		$this->resetTabs();
+		return $content; 
+	}
+
+}

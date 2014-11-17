@@ -1,0 +1,57 @@
+// ---------------------------------------------------------------
+//
+//  Basic typography
+//
+// ---------------------------------------------------------------
+
+@import url(//fonts.googleapis.com/css?family=Roboto+Slab:400,700,300);
+
+body {
+	font-family: 'Roboto Slab', serif;
+}
+
+.content-main {
+	p,
+	ul {
+		line-height: 1.68;
+	}
+}
+
+ul {
+	list-style-type: square;
+}
+
+a {
+	color: $blue;
+}
+
+h2,
+h3 {
+	margin: 0 0 12px;
+	font-size: 24px;
+}
+
+.section-recipe {
+	h3 {
+		margin-top: 1.25em;
+		color: $blue;
+		font-weight: 400;
+		font-size: 18px;
+	}
+}
+
+code {
+	padding: 2px 6px;
+	background: $lite_grey;
+
+	.template--recipe pre & {
+		display: block;
+		line-height: 1.68;
+	}
+}
+
+.hljs {
+	display: inline;
+}
+
+

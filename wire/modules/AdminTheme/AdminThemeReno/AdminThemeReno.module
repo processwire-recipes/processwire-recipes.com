@@ -1,0 +1,137 @@
+<?php
+
+class AdminThemeReno extends AdminTheme implements Module, ConfigurableModule {
+
+	/**
+	* Per the Module interface, return an array of information about the Module
+	*
+	*/
+	public static function getModuleInfo() {
+		return array(
+			'title' => 'Reno',
+			'version' => 12,
+			'summary' => __('Admin theme for ProcessWire 2.5 by Tom Reno (Renobird)', __FILE__),
+			'autoload' => "template=admin",
+			'author' => "Tom Reno (Renobird)",
+			'requires' => 'AdminThemeDefault', 
+		); 
+	}
+
+	static $defaultIcons = array(
+		"home" => "fa-home",
+		"signout" => "fa-power-off",
+		"page" => "fa-file-text",
+		"setup" => "fa-wrench",
+		"module" => "fa-briefcase",
+		"access" => "fa-unlock",
+		"form-builder" => "fa-list-alt"
+	);
+
+	public function __construct() {
+		foreach(self::$defaultIcons as $key => $value) {
+			$this->$key = $value;
+		}
+	}
+
+
+	public function getSearchPlaceholder() {
+		// if placeholder text is not translated for user's language, make it blank
+		$placeholder = $this->_('Type here to search');
+		if(!$this->wire('languages')) return $placeholder;
+		$user = $this->wire('user'); 
+		if($placeholder === 'Type here to search' && $user->language && !$user->language->isDefault()) {
+			$placeholder = '';
+		}
+		return $placeholder;
+	}
+
+	public static function getModuleConfigInputfields(array $data) {
+		
+		$inputfields = new InputfieldWrapper();
+
+		// colorscheme
+		$field = wire('modules')->get('InputfieldRadios');
+		$field->attr('name', 'colors');
+		$field->label = __('Color Set'); 
+		$field->addOption('', __('Reno'));
+		$field->addOption('classic', __('Classic'));
+		$field->addOption('blue', __('Blue'));
+		$field->attr('value', isset($data['colors']) ? $data['colors'] : ''); 
+		$field->optionColumns = 1; 
+		$inputfields->add($field);
+
+		// user avatar
+		$template = wire('templates')->get("user");
+		$field = wire('modules')->get("InputfieldSelect"); 
+		$field->attr('name', 'avatar_field'); 
+		$field->label = __('User image field'); 
+		$field->description = __('To use this feature the "user" template needs to have an image field. If your user template does not have an image field, the avatar will default to an icon. To add an image field to the user template to go Setup > Templates > Filters (Show System Templates). The "user" template will now show in the list.'); // User image description
+		$imageField = false;
+
+		foreach($template->fields as $f) {
+			if(($f->type == "FieldtypeImage") || ($f->type == "FieldtypeCropImage")){
+				if(isset($data['avatar_field']) && $data['avatar_field'] == $f->name) {
+					$field->addOption($f->name, $f->name, array("selected"=>"selected"));
+					$imageField = $f->name;
+				} else {
+					$field->addOption($f->name, $f->name);
+					$imageField = true;
+				}
+			}
+		}
+
+		if(!$imageField) {
+			$field->addOption('', __('No image fields assigned to the user template'));
+		} else {
+			// make the image field part of the profile fields the user may edit
+			$profileConfig = wire('modules')->getModuleConfigData('ProcessProfile');
+			if(!in_array($imageField, $profileConfig['profileFields'])) {
+				$profileConfig['profileFields'][] = $imageField;
+				wire('modules')->saveModuleConfigData('ProcessProfile', $profileConfig);
+				wire()->message(sprintf(__('Added field "%s" to fields editable by user in their profile.'), $f->name)); 
+			}
+		}
+		$inputfields->add($field);
+
+		// Icons
+		$fieldset = wire('modules')->get("InputfieldFieldset");
+		$fieldset->label = __('Icons');
+		$fieldset->description = __('Specify icons for navigation items');
+		$fieldset->icon = "fa-cog";
+		$fieldset->collapsed = true;
+
+		// view homepage icon
+		$field = wire('modules')->get("InputfieldText");
+		$field->attr('name', "home");
+		$field->label = __("Top Navigation: View Home Page");
+		$field->columnWidth = 50;
+		$field->attr('value', array_key_exists('home', self::$defaultIcons) ? self::$defaultIcons['home'] : "fa-home");
+		if (isset($data['home'])) $field->attr('value', $data['home']);
+		$fieldset->add($field);
+
+		// signout
+		$field = wire('modules')->get("InputfieldText");
+		$field->attr('name', "signout");
+		$field->label = __("Top Navigation: Sign out");
+		$field->columnWidth = 50;
+		$field->attr('value', array_key_exists('signout', self::$defaultIcons) ? self::$defaultIcons['signout'] : "fa-power-off");
+		if (isset($data['signout'])) $field->attr('value', $data['signout']);
+		$fieldset->add($field);
+
+		foreach(wire('pages')->find("parent=2, sort=sort") as $p){
+			if(!$p->viewable()) continue;
+			$field = wire('modules')->get("InputfieldText");
+			$field->attr('name', $p->name);
+			$field->label = __($p->title, '/wire/templates-admin/default.php');
+			$field->columnWidth = 25;
+			$field->attr('value', array_key_exists($p->name, self::$defaultIcons) ? self::$defaultIcons[$p->name] : "fa-file-text-o");
+			if (isset($data[$p->name])) $field->attr('value', $data[$p->name]);
+			$fieldset->add($field);
+		}
+
+		$inputfields->add($fieldset);
+
+		return $inputfields;
+	}
+
+}

@@ -1,0 +1,20 @@
+{
+  "name": "lpwr",
+  "version": "0.0.0",
+  "description": "",
+  "main": "gulpfile.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "MHE",
+  "license": "BSD-2-Clause",
+  "devDependencies": {
+    "gulp": "^3.8.7",
+    "gulp-autoprefixer": "0.0.9",
+    "gulp-concat": "^2.3.4",
+    "gulp-jshint": "^1.8.4",
+    "gulp-ruby-sass": "^0.7.1",
+    "gulp-uglify": "^0.3.2",
+    "gulp-watch": "^0.6.9"
+  }
+}

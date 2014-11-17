@@ -1,0 +1,36 @@
+<?php
+
+/**
+ * ProcessWire Parsedown Textformatter
+ *
+ * See: http://parsedown.org/
+ *
+ * ProcessWire 2.x
+ * Copyright (C) 2012 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ *
+ */
+
+class TextformatterParsedownExtra extends Textformatter {
+
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'Parsedown Extra',
+            'version' => 10,
+            'author' => 'Christian Raunitschka (owzim)',
+            'summary' => "Better Markdown parser in PHP",
+            'href' => "http://parsedown.org/",
+        );
+    }
+
+    public function format(&$str) {
+        require_once("parsedown/Parsedown.php");
+        require_once("parsedown/ParsedownExtra.php");
+        $parsedown = new ParsedownExtra();
+        $str = $parsedown->text($str);
+    }
+
+}

@@ -1,0 +1,23 @@
+// ---------------------------------------------------------------
+//
+//  Footer navigation
+//
+// ---------------------------------------------------------------
+
+.nav-foot {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-size: 12px;
+
+	li {
+		float: left;
+		margin: 0 25px 0 0;
+		padding: 0;
+	}
+
+	a {
+		color: $white;
+		text-decoration: none;
+	}
+}
