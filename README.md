@@ -33,7 +33,7 @@ Necessary steps:
 
 ## Get in touch
 
-processwire-recipes.com (PWR) is a project by Marcus Herrmann ( @marcus-herrmann ) and Christian Raunitschka ( @owzim ). 
+processwire-recipes.com (PWR) is a project by Marcus Herrmann ([marcus-herrmann](https://github.com/marcus-herrmann)) and Christian Raunitschka ([owzim](https://github.com/owzim)). 
 
 Questions or suggestions? Contact us on twitter
 
