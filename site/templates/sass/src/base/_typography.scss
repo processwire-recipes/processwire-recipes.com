@@ -41,12 +41,17 @@ h3 {
 }
 
 code {
+	display: inline;
 	padding: 2px 6px;
 	background: $lite_grey;
 
 	.template--recipe pre & {
 		display: block;
 		line-height: 1.68;
+
+		&.hljs {
+			padding: 14px;
+		}
 	}
 }
 
