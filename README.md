@@ -11,13 +11,12 @@ Recipes are structured as follows:
  * Description of the problem
  * Description and code sample of the chosen solution
  * (optional) Used or referred resources for problem solving
- * Assigned tags
+ * Tags assigned in order to structure the directory processwire-recipes.com and increase searchability
  
 Additional to this core data, ProcessWire Recipes need the following indications
  
  * Author(s) of the recipe
- * Its version
- * Tags applying in order to structure the directory processwire-recipes.com and increase searchability
+ * Its version (when being updated)
  
 ## How to contribute
 
