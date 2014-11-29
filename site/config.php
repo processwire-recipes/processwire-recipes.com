@@ -31,10 +31,8 @@ if(!defined("PROCESSWIRE")) die();
  * @var bool
  *
  */
-$config->debug = false;
-
-$config->prependTemplateFile = 'partials/header.php';
-$config->appendTemplateFile = 'partials/footer.php';
+//$config->debug = true;
+$config->debug = ($_ENV["ENV"] == "development") ? true : false;
 
 
 /*** INSTALLER CONFIG ********************************************************************/

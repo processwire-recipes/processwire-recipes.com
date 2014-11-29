@@ -1,11 +1,21 @@
-<?php
+<?php $page->renderChunk('partials/header.php'); ?>
 
-	$section_headline = 'All Tags';
-	$section_headline = 'Recipes tagged "' . $page->title . '"';
-	$pagination = false;
-	$show_tags = true;
-	$show_authors = false;
-	$recipes = $pages->find("template=recipe, sort=-created, limit=0, tags={$page->name}");
-	include_once ("partials/list-recipes.php");
+<div class="module module-recipelist">
+	<h3>Recipes tagged with <?= $tag ?></h3>
+
+	<ul class="module-recipelist__list">
+		<?php foreach ($recipes as $r): ?>
+			<li class="recipelist__listitem"><a href="<?= $r->url ?>"><?= $r->title ?></a>
+
+
+			</li>
+		<?php endforeach; ?>
+	</ul>
+
+</div>
+
+
+<?php $page->renderChunk('partials/footer.php'); ?>
+
 
  

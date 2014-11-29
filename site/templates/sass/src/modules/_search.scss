@@ -18,6 +18,7 @@
 	height: 38px;
 	border: none;
 	color: $black;
+	line-height: 38px;
 }
 
 .module-search__submit {
@@ -62,6 +63,10 @@
 		&:focus {
 			font-weight: 700;
 		}
+	}
+
+	.module {
+		padding-bottom: 0;
 	}
 
 }

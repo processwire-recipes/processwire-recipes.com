@@ -1,3 +1,6 @@
+<?php $page->renderChunk('partials/header.php'); ?>
+
+
 <h2 class="page-headline"><?= $title ?></h2>
 
 <section class="section-recipe">
@@ -12,10 +15,17 @@
 </section>
 
 <section class="section-recipe">
-	<?php
-		$tags = $page->tags;
-		$section_headline = "Tags";
-		include_once ("partials/list-tags.php"); ?>
+
+	<div class="module module-taglist">
+		<h3>Tags</h3>
+
+		<ul>
+			<?php foreach ($tags as $t): ?>
+				<li><a href="<?= $t->url ?>"><?= $t->title ?></a> </li>
+			<?php endforeach; ?>
+		</ul>
+	</div>
+
 </section>
 
 <?php if($resources): ?>
@@ -38,3 +48,5 @@
 		<?php endforeach; ?>
 	</ul>
 </section>
+
+<?php $page->renderChunk('partials/footer.php'); ?>

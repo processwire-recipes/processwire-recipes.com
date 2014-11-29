@@ -1,8 +1,17 @@
 // ---------------------------------------------------------------
 //
-//  Base layout containers
+//  Base layout
 //
 // ---------------------------------------------------------------
+
+html {
+	position: relative;
+	min-height: 100%;
+}
+body {
+	min-height: 100%;
+	margin: 0 0 65px;
+}
 
 .inner {
 	@extend %clearfix;

@@ -3,7 +3,7 @@
 			<div class="footer-main">
 				<div class="inner">
 					<ul class="nav-foot">
-						<li><a href="<?= $pages->get(1049)->url ?>">Impressum & Datenschutzerklärung</a></li>
+						<li><a href="<?= $legal ?>">Impressum & Datenschutzerklärung</a></li>
 						<li><a href="http://processwire.com">Made with ProcessWire</a></li>
 					</ul>
 				</div>

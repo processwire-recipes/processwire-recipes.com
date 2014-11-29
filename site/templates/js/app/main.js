@@ -1,12 +1,8 @@
-var pwr = {
+$(document).ready(function() {
 
-	initSyntaxHighlighting : function() {
-		$('.section-recipe').find('code').each(function (i, block) {
-			hljs.highlightBlock(block);
-		});
-	}
+	console.log("foo");
 
-};
-
-pwr.initSyntaxHighlighting();
-
+	$('.section-recipe code').each(function (i, block) {
+		hljs.highlightBlock(block);
+	});
+});

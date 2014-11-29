@@ -1,3 +1,6 @@
+<?php $page->renderChunk('partials/header.php'); ?>
+
+
 <div class="col-50">
 	<h2 class="page-headline"><?= $headline ?></h2>
 
@@ -8,14 +11,30 @@
 
 <div class="col-50">
 
-	<?php
-		$section_headline = "Recent recipes";
-		$recipes = $pages->find("template=recipe, sort=-created, limit=10");
-		include_once ("partials/list-recipes.php"); ?>
+	<div class="module module-recipelist">
+		<h3>Recent Recipes</h3>
 
-	<?php
-		$section_headline = "Recent tags";
-		$tags = $pages->find("template=recipe-tag, sort=-created, limit=10");
-		include_once ("partials/list-tags.php"); ?>
+		<ul class="module-recipelist__list">
+			<?php foreach ($recipes as $r): ?>
+				<li class="recipelist__listitem"><a href="<?= $r->url ?>"><?= $r->title ?></a>
+
+
+				</li>
+			<?php endforeach; ?>
+		</ul>
+
+	</div>
+
+	<div class="module module-taglist">
+		<h3>Recent Tags</h3>
+
+		<ul>
+			<?php foreach ($tags as $t): ?>
+				<li><a href="<?= $t->url ?>"><?= $t->title ?></a> </li>
+			<?php endforeach; ?>
+		</ul>
+	</div>
 
 </div>
+
+<?php $page->renderChunk('partials/footer.php'); ?>
