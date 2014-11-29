@@ -4,13 +4,14 @@
 
 PWR aims to supply short and concise instructions and snippets on how to solve particular problems or realize particular features in ProcessWire. 
 
-**tl;dr: Contribute via adding recipes to `/site/recipe-txt-files`**
+**tl;dr: Contribute to this repository consisting of recipe text files: [https://github.com/processwire-recipes/Recipes](https://github.com/processwire-recipes/Recipes)**
 
 Recipes are structured as follows:
  
  * Description of the problem
  * Description and code sample of the chosen solution
  * (optional) Used or referred resources for problem solving
+ * Assigned tags
  
 Additional to this core data, ProcessWire Recipes need the following indications
  
@@ -20,14 +21,17 @@ Additional to this core data, ProcessWire Recipes need the following indications
  
 ## How to contribute
 
-You can contribute to PWR by adding text files to this very repository (this is made possible with [ProcessRecipeInstaller](https://github.com/processwire-recipes/ProcessRecipeInstaller)).
+You can contribute to PWR by adding text files to a separate repository (this is made possible with [ProcessRecipeInstaller](https://github.com/processwire-recipes/ProcessRecipeInstaller)). 
+Please note that the recipe files are composed in **[Markdown](http://daringfireball.net/projects/markdown/)**.
 
 Necessary steps:
 
- * Fork the Repo on GitHub
+ * Fork **[the recipe repo](https://github.com/processwire-recipes/Recipes)** on GitHub
  * Clone to your local environment, check out `master` branch
- * Create a new branch in the `contribute/ namespace`, e.g. `contribute/use-foo-with-processwire`
- * Add your recipes text file(s) to `/site/recipe-txt-files`
+ * Create a branch for your contribution(s), please use a descriptive name
+ * Add your recipes text file(s)
+     * **Before you tag your recipe(s), have a look into the tag list and try to prevent close-to-identical doublets**
+     * When in doubt, use singular
  * Commit, push to GitHub
  * Create a pull request ([Info](https://help.github.com/articles/creating-a-pull-request/))
 
