@@ -18,8 +18,17 @@
 	<div class="inner">
 		<h1 class="header-main__logo"><i class="fa fa-book"></i> <a href="<?= $frontpage->url ?>"><?= $pageTitle ?></a></h1>
 
-		<?php $page->renderChunk('partials/nav-main.php'); ?>
-		<?php $page->renderChunk('partials/search.php'); ?>
+		<ul class="nav-main">
+			<?php foreach($nav_main as $p): ?>
+				<li class="nav-main__item<?= ($p === $id) ? ' nav-main__item--current' : '' ?>"><a href="<?= $pages->get($p)->url?>"><?= $pages->get($p)->title ?></a></li>
+			<?php endforeach; ?>
+		</ul>
+
+		<form class="module-search" action="<?= $root ?>search-results/" method="get">
+			<input type="text" name="q" class="module-search__query" value="<?= htmlentities($input->whitelist('q'), ENT_QUOTES, 'UTF-8') ?>" placeholder="Search here..." />
+			<button type="submit" tabindex="-1" class="module-search__submit"><i class="fa fa-search"></i> <span class="hide">Search</span></button>
+		</form>
+
 	</div>
 
 </header>

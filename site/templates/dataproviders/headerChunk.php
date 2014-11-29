@@ -11,6 +11,7 @@ class HeaderChunk extends \nw\DataProviders\ChunkDataProvider {
 		$this->frontpage = $pages->get(1);
 		$this->templates = $config->urls->templates;
 		$this->pageTitle = $this->settings->pageTitle;
+		$this->input = wire('input');
 
 		$this->template = $page->template;
 		$this->page = $page;
