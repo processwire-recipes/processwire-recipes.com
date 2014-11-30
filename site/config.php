@@ -76,3 +76,10 @@ $config->timezone = 'Europe/Berlin';
  *
  */
 $config->httpHosts = array('pwr.local', 'staging.processwire-recipes.com', 'processwire-recipes.com');
+
+/**
+ * Set Reno as default admin theme
+ *
+ */
+$config->defaultAdminTheme = 'AdminThemeReno';
+
