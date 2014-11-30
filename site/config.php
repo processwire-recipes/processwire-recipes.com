@@ -71,9 +71,8 @@ $config->chmodFile = '0644'; // permission for files created by ProcessWire
  */
 $config->timezone = 'Europe/Berlin';
 
-
 /**
  * Installer: HTTP Hosts Whitelist
  *
  */
-$config->httpHosts = array('pwr.local', 'processwire-recipes.com');
+$config->httpHosts = array('pwr.local', 'staging.processwire-recipes.com', 'processwire-recipes.com');
