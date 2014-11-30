@@ -1,7 +1,7 @@
-<?php $page->renderChunk('partials/header.php'); ?>
+{{ page.renderChunk('partials/header.php') }}
 
-<?= $out ?>
+{{ out }}
 
-<?php $page->renderChunk('partials/footer.php'); ?>
+{{ page.renderChunk('partials/footer.php') }}
 
 

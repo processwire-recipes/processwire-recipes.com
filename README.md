@@ -16,7 +16,7 @@ Recipes are structured as follows:
 Additional to this core data, ProcessWire Recipes need the following indications
  
  * Author(s) of the recipe
- * Its version (when being updated)
+ * Its version (when being updated or modified)
  
 ## How to contribute
 

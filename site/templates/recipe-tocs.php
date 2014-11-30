@@ -1,5 +1,5 @@
-<?php $page->renderChunk('partials/header.php'); ?>
+{{ page.renderChunk('partials/header.php') }}
 
-<h2><?= $title ?></h2>
+<h2>{{ title }}</h2>
 
-<?php $page->renderChunk('partials/footer.php'); ?>
+{{ page.renderChunk('partials/footer.php') }}

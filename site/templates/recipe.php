@@ -1,17 +1,16 @@
-<?php $page->renderChunk('partials/header.php'); ?>
+{{ page.renderChunk('partials/header.php') }}
 
-
-<h2 class="page-headline"><?= $title ?></h2>
+<h2 class="page-headline">{{ title }}</h2>
 
 <section class="section-recipe">
 	<h3>Problem</h3>
-	<p><?= $problem ?></p>
+	<p>{{ problem }}</p>
 </section>
 
 <section class="section-recipe">
 
 	<h3>Solution</h3>
-	<p><?= $solution ?></p>
+	<p>{{ solution }}</p>
 </section>
 
 <section class="section-recipe">
@@ -20,33 +19,33 @@
 		<h3>Tags</h3>
 
 		<ul>
-			<?php foreach ($tags as $t): ?>
-				<li><a href="<?= $t->url ?>"><?= $t->title ?></a> </li>
-			<?php endforeach; ?>
+		{% for t in tags %}
+			<li><a href="{{ t.url }}">{{ t.title }}</a> </li>
+		{% endfor %}
 		</ul>
 	</div>
 
 </section>
 
-<?php if($resources): ?>
+{% if (resources) %}
 	<section class="section-recipe">
 		<h3>Resources</h3>
-		<p><?= $resources ?></p>
+		<p>{{ resources }}</p>
 	</section>
-<?php endif; ?>
+{% endif %}
 
 <section class="section-recipe">
 	<h3>Version</h3>
-	<p><?= $version ?></p>
+	<p>{{ version }}</p>
 </section>
 
 <section class="section-recipe">
 	<h3>Author(s)</h3>
 	<ul>
-		<?php foreach($authors as $a):?>
-			<li><?= $a->title ?></li>
-		<?php endforeach; ?>
+	{% for a in authors %}
+		<li>{{ a.title }}</li>
+	{% endfor %}
 	</ul>
 </section>
 
-<?php $page->renderChunk('partials/footer.php'); ?>
+{{ page.renderChunk('partials/footer.php') }}
