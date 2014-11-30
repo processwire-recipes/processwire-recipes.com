@@ -22,11 +22,12 @@ class HeaderChunk extends \nw\DataProviders\ChunkDataProvider {
 		$this->id = $page->id;
 
 		$this->nav_main = [
-			1014,
-			1015,
-			1047,
-			1048
+			$pages->get(1014),
+			$pages->get(1015),
+			$pages->get(1047),
+			$pages->get(1048)
 		];
+
 	}
 }
  
