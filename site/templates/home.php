@@ -5,7 +5,7 @@
 
 	{{ body }}
 
-	<a href="#" class="btn btn-default"><i class="fa fa-github-square"></i> Contribute via Pull Request on GitHub</a>
+	<a href="https://github.com/processwire-recipes/Recipes" class="btn btn-default" target="_blank"><i class="fa fa-github-square"></i> Contribute via Pull Request on GitHub</a>
 </div>
 
 <div class="col-50">
@@ -15,7 +15,7 @@
 
 		<ul class="module-recipelist__list">
 			{% for r in recipes %}
-				<li class="recipelist__listitem"><a href="{{ r.url }}">{{ r.title }}</a></li>
+				<li class="module-recipelist__listitem"><a href="{{ r.url }}">{{ r.title }}</a></li>
 			{% endfor %}
 		</ul>
 
