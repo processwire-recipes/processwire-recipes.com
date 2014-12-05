@@ -20,8 +20,7 @@ Additional to this core data, ProcessWire Recipes need the following indications
  
 ## How to contribute
 
-You can contribute to PWR by adding text files to a separate repository (this is made possible with [ProcessRecipeInstaller](https://github.com/processwire-recipes/ProcessRecipeInstaller)). 
-Please note that the recipe files are composed in **[Markdown](http://daringfireball.net/projects/markdown/)**.
+You can contribute to PWR by adding text files to a separate repository (this is made possible with [ProcessRecipeInstaller](https://github.com/processwire-recipes/ProcessRecipeInstaller)). **Alternatively, for the time being, you can post your recipes in this [Topic in the forums](https://processwire.com/talk/topic/7572-processwire-recipes/?hl=recipes) and we'll add it to the repo**. In the near future we plan to implement a contribution form right here to sync back to the GitHub repo.
 
 Necessary steps:
 
