@@ -9,6 +9,8 @@
 	<link rel="icon" type="image/png" href="{{ templates }}favicons/favicon-32x32.png" sizes="32x32" />
 	<link rel="icon" type="image/png" href="{{ templates }}favicons/favicon-16x16.png" sizes="16x16" />
 
+	<link rel="alternate" type="application/rss+xml" title="Recipe RSS Feed" href="{{ frontpage.url }}feed/" />
+
 </head>
 <body class="template--{{ template }}">
 
