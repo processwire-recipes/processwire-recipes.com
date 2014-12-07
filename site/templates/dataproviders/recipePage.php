@@ -11,6 +11,7 @@ class recipePage extends \nw\DataProviders\PageDataProvider {
 		$this->resources = wire('page')->resources;
 		$this->tags = wire('page')->tags;
 		$this->authors = wire('page')->authors;
+		$this->githublink = "https://github.com/processwire-recipes/Recipes/blob/master/" . wire('page')->name . ".md";
 
 	}
 }

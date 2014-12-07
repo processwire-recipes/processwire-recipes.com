@@ -27,6 +27,7 @@
 
 </section>
 
+
 {% if (resources) %}
 	<section class="section-recipe">
 		<h3>Resources</h3>
@@ -40,6 +41,12 @@
 </section>
 
 <section class="section-recipe">
+	<h3>View/correct recipe on GitHub</h3>
+
+	<i class="fa fa-pencil-square-o"></i> <a href="{{ githublink }}">{{ githublink }}</a>
+</section>
+
+<section class="section-recipe">
 	<h3>Author(s)</h3>
 	<ul>
 	{% for a in authors %}
@@ -47,5 +54,7 @@
 	{% endfor %}
 	</ul>
 </section>
+
+
 
 {{ page.renderChunk('partials/footer.php') }}
