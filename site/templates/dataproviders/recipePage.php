@@ -1,6 +1,6 @@
 <?php
 
-class recipePage extends \nw\DataProviders\PageDataProvider {
+class RecipePage extends \nw\DataProviders\PageDataProvider {
 
 	public function populate() {
 
