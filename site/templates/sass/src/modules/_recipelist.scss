@@ -33,8 +33,9 @@
 
 	li {
 		display: inline;
+		float: right;
 
-		&:first-child {
+		&:last-child {
 			a {
 				margin-left: 0;
 			}
