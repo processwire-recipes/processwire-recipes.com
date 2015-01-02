@@ -20,7 +20,7 @@
 
 .module-recipelist__listitem {
 	@extend %clearfix;
-	padding: 6px;
+	padding: 6px 6px 0 6px;
 
 	&:nth-child(even) {
 		background: $lite_grey;
@@ -29,7 +29,7 @@
 
 .module-recipelist__tags {
 	float: right;
-	max-width: 33%;
+	max-width: 50%;
 
 	li {
 		display: inline;
@@ -46,6 +46,5 @@
 
 	a {
 		@extend %tag_style;
-		margin-bottom: 0;
 	}
 }

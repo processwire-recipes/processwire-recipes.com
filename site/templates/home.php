@@ -1,11 +1,23 @@
 {{ page.renderChunk('partials/header.php') }}
 
 <div class="col-50">
-	<h2 class="page-headline">{{ headline }}</h2>
+	<div class="welcome-box">
+		<h2 class="page-headline">{{ headline }}</h2>
 
-	{{ body }}
+		{{ body }}
 
-	<a href="https://github.com/processwire-recipes/Recipes" class="btn btn-default" target="_blank"><i class="fa fa-github-square"></i> Contribute via Pull Request on GitHub</a>
+		<a href="https://github.com/processwire-recipes/Recipes" class="btn btn-default" target="_blank"><i class="fa fa-github-square"></i> Contribute via Pull Request on GitHub</a>
+	</div>
+
+	<div class="module module-taglist">
+			<h3>Recent Tags</h3>
+
+			<ul>
+				{% for t in tags %}
+				<li><a href="{{ t.url }}">{{ t.title }}</a> </li>
+				{% endfor %}
+			</ul>
+	</div>
 </div>
 
 <div class="col-50">
@@ -21,15 +33,7 @@
 
 	</div>
 
-	<div class="module module-taglist">
-		<h3>Recent Tags</h3>
 
-		<ul>
-			{% for t in tags %}
-				<li><a href="{{ t.url }}">{{ t.title }}</a> </li>
-			{% endfor %}
-		</ul>
-	</div>
 
 </div>
 
