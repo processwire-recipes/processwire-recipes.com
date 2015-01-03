@@ -1,1 +1,1 @@
-{{ recipe_feed }}
+<?= $recipe_feed ?>
