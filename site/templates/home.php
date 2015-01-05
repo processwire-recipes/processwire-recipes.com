@@ -7,6 +7,8 @@
 		{{ body }}
 
 		<a href="https://github.com/processwire-recipes/Recipes" class="btn btn-default" target="_blank"><i class="fa fa-github-square"></i> Contribute via Pull Request on GitHub</a>
+		<a href="https://processwire-recipes.com/feed" class="btn btn-default" target="_blank"><i class="fa fa-rss"></i> Grab the Recipe feed</a>
+		<a href="https://github.com/processwire-recipes/Recipes" class="btn btn-default" target="_blank"><i class="fa fa-twitter"></i> Follow us on twitter</a>
 	</div>
 
 	<div class="module module-taglist">
