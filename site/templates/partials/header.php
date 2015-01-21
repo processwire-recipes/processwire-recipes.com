@@ -11,6 +11,8 @@
 
 	<link rel="alternate" type="application/rss+xml" title="Recipe RSS Feed" href="{{ frontpage.url }}feed/" />
 
+	<meta name="google-site-verification" content="rG3o1FL36k5fLNtPdQkSrZjZotTx92sHCA-Sm-1Bk6M" />
+
 </head>
 <body class="template--{{ template }}">
 
