@@ -29,7 +29,7 @@
 		</ul>
 
 		<form class="module-search" action="{{ frontpage.url }}search-results/" method="get">
-			<input type="text" name="q" class="module-search__query" placeholder="Search here..." />
+			<input type="text" name="q" class="module-search__query" placeholder="Search here..." required />
 			<button type="submit" tabindex="-1" class="module-search__submit"><i class="fa fa-search"></i> <span class="hide">Search</span></button>
 		</form>
 
