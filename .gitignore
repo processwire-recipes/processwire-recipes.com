@@ -24,3 +24,4 @@ site/assets/logs/messages.txt
 site/db.inc.php
 site/assets/logs/errors.txt
 site/assets/backups
+site/modules/TemplateStubs
