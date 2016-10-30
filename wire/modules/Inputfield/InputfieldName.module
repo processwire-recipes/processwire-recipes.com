@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * An Inputfield for handling ProcessWire "name" fields
@@ -23,7 +23,7 @@ class InputfieldName extends InputfieldText {
 	public function init() {
 		parent::init();
 		$this->attr('type', 'text'); 
-		$this->attr('maxlength', 128); 
+		$this->attr('maxlength', Pages::nameMaxLength); 
 		$this->attr('size', 0); 
 		$this->attr('name', 'name'); 
 		$this->set('required', true); 
@@ -33,7 +33,7 @@ class InputfieldName extends InputfieldText {
 	}
 
 	protected function setAttributeValue($value) {
-		$value = call_user_func(array($this->fuel('sanitizer'), $this->sanitizeMethod), $value); 
+		$value = call_user_func(array($this->wire('sanitizer'), $this->sanitizeMethod), $value); 
 		return $value; 
 	}
 

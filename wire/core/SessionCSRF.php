@@ -1,13 +1,10 @@
-<?php
+<?php 
 
 /**
  * ProcessWire CSRF Protection
  *
- * ProcessWire 2.x 
- * Copyright (C) 2014 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -51,7 +48,7 @@ class SessionCSRF extends Wire {
 		$tokenValue = $this->session->get($this, $tokenName);
 		if(empty($tokenValue)) {
 			// $tokenValue = md5($this->page->path() . mt_rand() . microtime()) . md5($this->page->name . $this->config->userAuthSalt . mt_rand());
-			$pass = new Password();
+			$pass = $this->wire(new Password());
 			$tokenValue = $pass->randomBase64String(32);
 			$this->session->set($this, $tokenName, $tokenValue); 
 		}
@@ -92,7 +89,7 @@ class SessionCSRF extends Wire {
 	 * Note that a single call to hasValidToken($id) or validate($id) will invalidate the single use token.
 	 * So call them once and store your result if you need the result multiple times. 
 	 *
-	 * @param int|string $id Optional unique ID/name for this token (of ommitted one is generated automatically)
+	 * @param int|string $id Optional unique ID/name for this token (of omitted one is generated automatically)
 	 * @return array ("id' => "token ID", "name" => "token name", "value" => "token value", "time" => created timestamp)
 	 *
 	 */

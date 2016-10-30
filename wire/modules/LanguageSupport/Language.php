@@ -1,14 +1,11 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Language (single) Page Class
  *
- * ProcessWire 2.x 
- * Copyright (C) 2012 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -22,29 +19,39 @@ class Language extends Page {
 
 	/**
 	 * Construct a new Language instance
+	 * 
+	 * @param Template $tpl
 	 *
 	 */
 	public function __construct(Template $tpl = null) {
-		if(is_null($tpl)) $tpl = wire('templates')->get('language');
 		parent::__construct($tpl);
+		if(is_null($tpl)) {
+			$this->template = $this->wire('templates')->get('language');
+		}
 	}
 
 	/**
 	 * Get a value from the language page (intercepting translator and isDefault)
+	 * 
+	 * @param string $key
+	 * @return mixed
 	 *
 	 */
 	public function get($key) {
 		if($key == 'translator') return $this->translator();
-		if($key == 'isDefault' || $key == 'isDefaultLanguage') return $this->isDefaultLanguage; 
+		if($key == 'isDefault' || $key == 'isDefaultLanguage') return $this->isDefaultLanguage;
+		if($key == 'isCurrent') return $this->isCurrent();
 		return parent::get($key); 
 	}
 
 	/**
 	 * Return an instance of the translator prepared for this language
+	 * 
+	 * @return LanguageTranslator
 	 *
 	 */
 	public function translator() {
-		return wire('languages')->translator($this); 
+		return $this->wire('languages')->translator($this); 
 	}	
 
 	/**
@@ -57,10 +64,32 @@ class Language extends Page {
 
 	/**
 	 * Returns whether this is the default language
+	 * 
+	 * @return bool
 	 *
 	 */
 	public function isDefault() {
 		return $this->isDefaultLanguage || $this->name == 'default'; 
+	}
+
+	/**
+	 * Returns whether this is the current language
+	 * 
+	 * @return bool
+	 * 
+	 */
+	public function isCurrent() {
+		return $this->id == $this->wire('user')->language->id;
+	}
+
+	/**
+	 * Return the API variable used for managing pages of this type
+	 *
+	 * @return Pages|PagesType
+	 *
+	 */
+	public function getPagesManager() {
+		return $this->wire('languages');
 	}
 }
 

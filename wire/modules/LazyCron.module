@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire LazyCron Module
@@ -66,12 +66,9 @@
  * every4Weeks
  * 
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2011 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  * 
  *
  */
@@ -187,7 +184,7 @@ class LazyCron extends WireData implements Module {
 				if(empty($filedata[$n]) || $elapsedTime >= $seconds) {
 					try {
 						$this->$func($elapsedTime);
-					} catch(Exception $e) {
+					} catch(\Exception $e) {
 						$this->error($e->getMessage(), Notice::logOnly); 
 					}
 					$lasttime = $time;
@@ -202,7 +199,7 @@ class LazyCron extends WireData implements Module {
 			foreach($this->timeFuncs as $seconds => $func) {
 				try {
 					$this->$func(0);
-				} catch(Exception $e) {
+				} catch(\Exception $e) {
 					$this->error($e->getMessage(), Notice::logOnly); 
 				}
 				$times[$seconds] = $time;

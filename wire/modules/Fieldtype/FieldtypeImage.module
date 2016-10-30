@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Image Fieldtype
@@ -9,12 +9,9 @@
  * /wire/core/Fieldtype.php
  * /wire/core/FieldtypeMulti.php
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -30,14 +27,14 @@ class FieldtypeImage extends FieldtypeFile {
 	}
 
 	public function getBlankValue(Page $page, Field $field) {
-		$pageimages = new Pageimages($page);
+		$pageimages = $this->wire(new Pageimages($page));
 		$pageimages->setField($field);
 		$pageimages->setTrackChanges(true); 
 		return $pageimages; 
 	}
 
 	protected function getBlankPagefile(Pagefiles $pagefiles, $filename) {
-		return new Pageimage($pagefiles, $filename); 
+		return $this->wire(new Pageimage($pagefiles, $filename)); 
 	}
 
 	/*

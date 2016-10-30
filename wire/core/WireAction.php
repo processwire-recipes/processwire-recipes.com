@@ -1,9 +1,12 @@
-<?php
+<?php 
 
 /**
  * WireAction
  *
  * Base class for actions in ProcessWire
+ * 
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
  *
  */
 abstract class WireAction extends WireData implements Module {
@@ -55,7 +58,7 @@ abstract class WireAction extends WireData implements Module {
 	 *
 	 */
 	public function getItemType() {
-		return 'Wire';
+		return strlen(__NAMESPACE__) ? __NAMESPACE__ . '\\Wire' : 'Wire';
 	}
 
 	/**
@@ -87,12 +90,17 @@ abstract class WireAction extends WireData implements Module {
 	 *
 	 */
 	public function execute($item) {
-		if(!$this->isValidItem($item)) return false;
+		
+		if(!$this->isValidItem($item)) {
+			$this->error("Invalid item: $item", Notice::debug); 
+			return false;
+		}
 
 		try {
 			$result = $this->action($item); 
 
-		} catch(Exception $e) {
+		} catch(\Exception $e) {
+			$this->trackException($e, true);
 			$result = false; 
 			$this->error($e->getMessage()); 
 		}

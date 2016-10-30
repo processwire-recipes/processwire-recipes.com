@@ -1,7 +1,29 @@
-<?php
+<?php 
 
 /**
  * An individual notification item to be part of a NotificationArray for a Page
+ * 
+ * @class Notification
+ * 
+ * @property int $pages_id  page ID notification is for (likely a User page)
+ * @property int $sort  sort value, as required by Fieldtype
+ * @property int $src_id  page ID when notification was generated
+ * @property string $title  title/headline
+ * @property int $flags  flags: see flag constants 
+ * @property int $created  datetime created (unix timestamp)
+ * @property int $modified  datetime created (unix timestamp)
+ * @property int $qty  quantity of times this notification has been repeated
+ * 
+ * data encoded vars, all optional
+ * ===============================
+ * @property int $id  unique ID (among others the user may have)
+ * @property string $text  extended text
+ * @property string $html  extended text as HTML markup 
+ * @property string $from  "from" text where applicable, like a class name
+ * @property string $icon  fa-icon when applicable
+ * @property string $href  clicking notification goes to this URL
+ * @property int $progress  progress percent 0-100
+ * @property int $expires  datetime after which will automatically be deleted
  *
  */
 class Notification extends WireData {
@@ -30,6 +52,7 @@ class Notification extends WireData {
 	const flagNoGhost = 4096; 	// disable showing of a notification ghost
 	const flagAnnoy = 8192; 	// rather than just update bug counter, notification will pop up at top of screen
 	const flagShown = 16384; 	// has this flag once the notification has been sent to the UI at least once
+	const flagAlert = 32768;	// show an alert that requires acknowledgement (use with flagSession only)
 
 	/**
 	 * Provides a name for each of the flags
@@ -52,6 +75,7 @@ class Notification extends WireData {
 		self::flagNoGhost => 'no-ghost', 
 		self::flagAnnoy => 'annoy',
 		self::flagShown => 'shown', 
+		self::flagAlert => 'alert', 
 		);
 
 	/**
@@ -98,7 +122,7 @@ class Notification extends WireData {
 	public function title($value) { return $this->set('title', $value); }
 	public function text($value) { return $this->set('text', $value); }
 	public function html($value) { return $this->set('html', $value); }
-	public function from($value) { return $this->set('html', $value); }
+	public function from($value) { return $this->set('from', $value); }
 	public function icon($value) { return $this->set('icon', $value); }
 	public function href($value) { return $this->set('href', $value); }
 	public function progress($value) { return $this->set('progress', $value); }
@@ -257,6 +281,10 @@ class Notification extends WireData {
 	 * 
 	 * Note: setting the 'expires' value accepts either a future date, or a quantity of seconds 
 	 * in the future relative to now. 
+	 * 
+	 * @param string $key
+	 * @param mixed $value
+	 * @return this
 	 *
 	 */
 	public function set($key, $value) {
@@ -333,26 +361,30 @@ class Notification extends WireData {
 	 */
 	public function getHash() {
 
-		$id = 	parent::get('title') . ',' .
-				parent::get('from') . ',' .
-				parent::get('src_id') . ',' .
-				($this->page ? $this->page->id : '?') . ',' . 
-				parent::get('flags') . ',' . 
-				parent::get('icon') . ',' . 
-				parent::get('text') . ',' . 
-				parent::get('html');
+		$id = 	trim(parent::get('title')) . ',' .
+				// parent::get('from') . ',' .
+				// parent::get('src_id') . ',' .
+				// ($this->page ? $this->page->id : '?') . ',' . 
+				// parent::get('flags') . ',' . 
+				// parent::get('icon') . ',' . 
+				trim(parent::get('text')) . ',' . 
+				trim(parent::get('html'));
 
 		return md5($id);
 	}
 
 	/**
 	 * Retrieve a value from the Notification
+	 * 
+	 * @param string $key
+	 * @return mixed
 	 *
 	 */
 	public function get($key) {
 
 		if($key == 'id') return $this->getID();
 		if($key == 'page') return $this->page; 
+		if($key == 'hash') return $this->getHash();
 
 		if($key == 'flagNames') {
 			$flags = parent::get('flags');
@@ -405,8 +437,6 @@ class Notification extends WireData {
 	 */
 	public function __toString() {
 		$str = $this->title; 
-		// if($this->text) $str .= " - $this->text";
-		//	else if($this->html) $str .= " - " . strip_tags($this->html);
 		$str .= " (" . implode(', ', $this->get('flagNames')) . ")";
 		return $str; 
 	}

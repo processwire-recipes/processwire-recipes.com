@@ -1,25 +1,19 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Notices
- *
+ * 
+ * Base class that holds a message, source class, and timestamp.
  * Contains notices/messages used by the application to the user. 
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
- */
-
-/**
- * Base class that holds a message, source class, and timestamp
- * 
  * @property string $text Text of notice
  * @property string $class Class of notice
  * @property int $timestamp When the notice was generated
  * @property int $flags Optional flags bitmask of Notice::debug and/or Notice::warning
+ * @property string $icon
  *
  */
 abstract class Notice extends WireData {
@@ -58,7 +52,7 @@ abstract class Notice extends WireData {
 	 *
 	 */
 	const allowMarkup = 32;
-
+	
 	/**
 	 * Create the Notice
 	 *
@@ -71,6 +65,7 @@ abstract class Notice extends WireData {
 		$this->set('class', ''); 
 		$this->set('timestamp', time()); 
 		$this->set('flags', $flags); 
+		$this->set('icon', '');
 	}
 
 	/**
@@ -128,7 +123,7 @@ class Notices extends WireArray {
 	}	
 
 	public function makeBlankItem() {
-		return new NoticeMessage(''); 
+		return $this->wire(new NoticeMessage('')); 
 	}
 
 	public function add($item) {
@@ -140,6 +135,9 @@ class Notices extends WireArray {
 		if(is_array($item->text)) {
 			$item->text = "<pre>" . trim(print_r($this->sanitizeArray($item->text), true)) . "</pre>";
 			$item->flags = $item->flags | Notice::allowMarkup;
+		} else if(is_object($item->text) && $item->text instanceof Wire) {
+			$item->text = "<pre>" . $this->wire('sanitizer')->entities(print_r($item->text, true)) . "</pre>";
+			$item->flags = $item->flag | Notice::allowMarkup;
 		} else if(is_object($item->text)) {
 			$item->text = (string) $item->text; 
 		}
@@ -155,7 +153,7 @@ class Notices extends WireArray {
 		if(($item->flags & Notice::warning) && !$item instanceof NoticeWarning) {
 			// if given a warning of either NoticeMessage or NoticeError, convert it to a NoticeWarning
 			// this is in support of legacy code, as NoticeWarning didn't used to exist
-			$warning = new NoticeWarning($item->text, $item->flags);
+			$warning = $this->wire(new NoticeWarning($item->text, $item->flags));
 			$warning->class = $item->class;
 			$warning->timestamp = $item->timestamp;
 			$item = $warning;
@@ -163,6 +161,7 @@ class Notices extends WireArray {
 
 		if(self::logAllNotices || ($item->flags & Notice::log) || ($item->flags & Notice::logOnly)) {
 			$this->addLog($item);
+			$item->flags = $item->flags & ~Notice::log; // remove log flag, to prevent it from being logged again
 			if($item->flags & Notice::logOnly) return $this;
 		}
 		
@@ -170,6 +169,7 @@ class Notices extends WireArray {
 	}
 	
 	protected function addLog($item) {
+		/** @var Notice $item */
 		$text = $item->text;
 		if($this->wire('config')->debug && $item->class) $text .= " ($item->class)"; 
 		$this->wire('log')->save($item->getName(), $text); 
@@ -202,6 +202,7 @@ class Notices extends WireArray {
 	 */
 	public function sanitizeArray(array $a) {
 		$sanitizer = $this->wire('sanitizer'); 
+		$b = array();
 		foreach($a as $key => $value) {
 			if(is_array($value)) {
 				$value = $this->sanitizeArray($value);
@@ -209,8 +210,9 @@ class Notices extends WireArray {
 				if(is_object($value)) $value = (string) $value;
 				$value = $sanitizer->entities($value); 
 			} 
-			$a[$key] = $value;	
+			$key = $this->wire('sanitizer')->entities($key);
+			$b[$key] = $value;
 		}
-		return $a; 
+		return $b; 
 	}
 }

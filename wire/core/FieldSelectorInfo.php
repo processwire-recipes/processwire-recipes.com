@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * Class that provides information about selectors for Fieldtypes
@@ -9,12 +9,12 @@
  * provide information about what properties can be selected, what operators, are used,
  * and so on. In the future this class will likely come in handy in providing selector
  * validation and improved help and error messaging when building/testing selectors. 
- *
- * ProcessWire 2.x 
- * Copyright (C) 2014 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
  * 
- * http://processwire.com
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
+ *
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  * 
  */
 class FieldSelectorInfo extends Wire {
@@ -47,9 +47,9 @@ class FieldSelectorInfo extends Wire {
 	public function __construct() {
 
 		$this->operators = array(
-			'number' => array('=', '!=', '>', '<', '>=', '<='),
+			'number' => array('=', '!=', '>', '<', '>=', '<=', '=""', '!=""'),
 			'text' => array('=', '!=', '%=', '^=', '$=', '=""', '!=""'),
-			'fulltext' => array('%=', '*=', '~=', '^=', '$=', '=', '!=', '=""', '!=""'),
+			'fulltext' => array('%=', '*=', '~=', '^=', '$=', '=', '!=', '=""', '!=""', '!%=', '!*=', '!~=', '!^=', '!$='),
 			'select' => array('=', '!=')
 			);
 
@@ -84,7 +84,6 @@ class FieldSelectorInfo extends Wire {
 	 * Return array with information about what properties and operators can be used with this field
 	 * 
 	 * @param Field $field
-	 * @param array $data Array of extra data, when/if needed
 	 * @return array
 	 *
 	 */
@@ -167,7 +166,7 @@ class FieldSelectorInfo extends Wire {
 	/**
 	 * Get array of operators
 	 *
-	 * @param string $type Specify: number, text, fulltext or select, or omit to return all possible operators at once
+	 * @param string $inputType Specify: number, text, fulltext or select, or omit to return all possible operators at once
 	 * @return array of operators or blank array if invalid type specified
 	 *
 	 */

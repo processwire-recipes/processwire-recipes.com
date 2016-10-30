@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Configuration File
@@ -12,11 +12,8 @@
  * You may also make up your own configuration options by assigning them 
  * in /site/config.php 
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2014 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  * 
  * TABLE OF CONTENTS
@@ -33,6 +30,8 @@
  * 10. Runtime 
  * 11. System
  * 
+ * @var Config $config
+ * 
  */
 
 if(!defined("PROCESSWIRE")) die();
@@ -42,14 +41,57 @@ if(!defined("PROCESSWIRE")) die();
 /**
  * Enable debug mode?
  * 
- * Debug mode causes additional info to appear for use during dev and debugging. 
+ * Debug mode causes additional info to appear for use during site development and debugging. 
  * This is almost always recommended for sites in development. However, you should
- * always have this disabled for live/production sites. 
+ * always have this disabled for live/production sites since it reveals more information
+ * than is advisible for security. 
+ * 
+ * #notes This enables debug mode for ALL requests. See the debugIf option for an alternative.
  * 
  * @var bool
  *
  */
 $config->debug = false;
+
+/**
+ * Enable debug mode if condition is met
+ *
+ * Set debug mode to be false above, and then specify any one of the following here:
+ * 1) IP address of user required to enable debug mode;
+ * 2) Your own callable function name (i.e. "debug_mode") in /site/config.php that returns
+ * true or false for debug mode;
+ * 3) PCRE regular expression to match IP address of user (must start and end with a "/"
+ * slash). If IP address matches, then debug mode is enabled. Regular expression
+ * example: /^123\.456\.789\./ would match all IP addresses that started with 123.456.789.
+ * 
+ * #notes When used, this overrides $config->debug, changing it at runtime automatically. 
+ * @var string
+ *
+ */
+$config->debugIf = '';
+
+/**
+ * Tools, and their order, to show in debug mode (admin)
+ * 
+ * Options include: pages, api, session, modules, hooks, database, db, timers, user, input, cache, autoload
+ * 
+ * @var array
+ * 
+ */
+$config->debugTools = array(
+	'pages',
+	'api',
+	'session',
+	'modules',
+	'hooks',
+	'database', // PDO
+	'db', // mysqli
+	'timers',
+	'user',
+	'input',
+	'cache',
+	'autoload',
+);
 
 /**
  * Enable ProcessWire advanced development mode?
@@ -71,8 +113,6 @@ $config->advanced = false;
  * 
  */
 $config->demo = false;
-
-
 
 
 /*** 2. DATES & TIMES *************************************************************************/
@@ -108,13 +148,26 @@ $config->dateFormat = 'Y-m-d H:i:s';
 /**
  * Session name
  * 
- * Default session name as used in session cookie. 
- * Note that changing this will automatically logout any current sessions. 
+ * Default session name as used in session cookie. You may wish to change this if running
+ * multiple ProcessWire installations on the same server. By giving each installation a unique
+ * session name, you can stay logged into multiple installations at once. 
  * 
+ * #notes Note that changing this will automatically logout any current sessions. 
  * @var string
  *
  */
 $config->sessionName = 'wire';
+
+/**
+ * Session name when on HTTPS
+ * 
+ * Same as session name but when on HTTPS. This is only used when the sessionCookieSecure
+ * option is enabled (default). When blank (default), it will be sessionName + 's'.
+ * 
+ * @var string
+ * 
+ */
+$config->sessionNameSecure = '';
 
 /**
  * Session expiration seconds
@@ -125,6 +178,41 @@ $config->sessionName = 'wire';
  *
  */
 $config->sessionExpireSeconds = 86400;
+
+/**
+ * Are sessions allowed?
+ * 
+ * Use this to determine at runtime whether or not a session is allowed for the current request. 
+ * Otherwise, this should always be boolean TRUE. When using this option, we recommend 
+ * providing a callable function like below. Make sure that you put in some logic to enable
+ * sessions on admin pages at minimum. The callable function receives a single $wire argument
+ * which is the ProcessWire instance. 
+ * 
+ * Note that the API is not fully ready when this function is called, so the current $page and
+ * the current $user are not yet known, nor is the $input API variable available. 
+ * 
+ * Also note that if anything in the request calls upon $session->CSRF, then a session is 
+ * automatically enabled. 
+ *
+ * ~~~~~
+ * $config->sessionAllow = function($session) {
+ * 
+ *   // if there is a session cookie, a session is likely already in use so keep it going
+ *   if($session->hasCookie()) return true;
+ * 
+ *   // if URL is an admin URL, allow session
+ *   if(strpos($_SERVER['REQUEST_URI'], $session->config->urls->admin) === 0) return true;
+ * 
+ *   // otherwise disallow session
+ *   return false;
+ * };
+ * ~~~~~
+ * 
+ * @var bool|callable Should be boolean, or callable that returns boolean. 
+ * 
+ */
+$config->sessionAllow = true; 
+
 
 /**
  * Use session challenge?
@@ -140,12 +228,49 @@ $config->sessionChallenge = true;
  * Use session fingerprint?
  * 
  * Should login sessions be tied to IP and user agent?
- * More secure, but will conflict with dynamic IPs.
- *
- * @var bool
+ * IP fingerprinting may be problematic on dynamic IPs. 
+ * Below are the possible values: 
+ * 
+ * 	0 or false: Fingerprint off
+ * 	1 or true: Fingerprint on with default/recommended setting (currently 10). 
+ * 	2: Fingerprint only the remote IP
+ * 	4: Fingerprint only the forwarded/client IP (can be spoofed)
+ * 	8: Fingerprint only the useragent
+ * 	10: Fingerprint the remote IP and useragent (default)
+ * 	12: Fingerprint the forwarded/client IP and useragent
+ * 	14: Fingerprint the remote IP, forwarded/client IP and useragent (all). 
+ * 
+ * @var int
  *
  */
-$config->sessionFingerprint = true;
+$config->sessionFingerprint = 1;
+
+/**
+ * Use secure cookies when on HTTPS?
+ * 
+ * When enabled, separate sessions will be maintained for
+ * HTTP vs. HTTPS. This ensures the session is secure on HTTPS.
+ * The tradeoff is that switching between HTTP and HTTPS means
+ * that you may be logged in on one and not the other. 
+ * 
+ * 0 or false: secure cookies off
+ * 1 or true: secure cookies on (default)
+ * 
+ * @var int
+ * 
+ */
+$config->sessionCookieSecure = 1; 
+
+/**
+ * Number of session history entries to record.
+ *
+ * When enabled (with a value > 0) a history of pageviews will be recorded in the
+ * session. These can be retrieved with $session->getHistory().
+ *
+ * @var int
+ *
+ */
+$config->sessionHistory = 0; 
 
 /**
  * Hash method to use for passwords.
@@ -160,8 +285,18 @@ $config->userAuthHashType = 'sha1';
 
 
 
-
 /*** 4. TEMPLATE FILES **************************************************************************/
+
+/**
+ * Allow template files to be compiled?
+ * 
+ * Set to false do disable the option for compiled template files. 
+ * When set to true, it will be used unless a given template's 'compile' option is set to 0.
+ * 
+ * @var bool
+ * 
+ */
+$config->templateCompile = strlen(__NAMESPACE__) > 0; 
 
 /**
  * Prepend template file 
@@ -210,32 +345,40 @@ $config->templateExtension = 'php';
 /**
  * Directory mode
  *
- * Octal string permissions assigned to directories created by ProcessWire
- * This value should always be overwritten by site-specific settings as 0777 
- * is too open for many installations. Note that changing this does not change 
- * permissions for existing directories, only newly created directories. 
+ * Octal string permissions assigned to directories created by ProcessWire.
+ * Please avoid 0777 if at all possible as that is too open for most installations. 
+ * Note that changing this does not change permissions for existing directories, 
+ * only newly created directories. 
  * 
  * #notes See [chmod man page](http://ss64.com/bash/chmod.html).
  * #pattern /^0[0-9]{3}$/
  * @var string
  *
  */
-$config->chmodDir = "0777";
+$config->chmodDir = "0755";
 
 /**
  * File mode
  *
- * Octal string permissions assigned to files created by ProcessWire
- * This value should always be overwritten by site-specific settings as 0666
- * is too open for many installations. Note that changing this does not change
- * permissions for existing files, only newly created/uploaded files.
+ * Octal string permissions assigned to files created by ProcessWire.
+ * Please avoid 0666 if at all possible as that is too open for most installations. 
+ * Note that changing this does not change permissions for existing files, only newly 
+ * created/uploaded files.
  * 
  * #notes See [chmod man page](http://ss64.com/bash/chmod.html).
  * #pattern /^0[0-9]{3}$/
  * @var string
  *
  */
-$config->chmodFile = "0666";
+$config->chmodFile = "0644";
+
+/**
+ * Set this to false if you want to suppress warnings about 0666/0777 permissions that are too open
+ * 
+ * @var bool 
+ * 
+ */
+$config->chmodWarn = true;
 
 /**
  * Bad file extensions for uploads
@@ -311,6 +454,26 @@ $config->pagefileSecurePathPrefix = '-';
 $config->pagefileExtendedPaths = false;
 
 /**
+ * Allowed content types for output by template files
+ * 
+ * When one of these options is selected for a template, the header will be sent 
+ * automatically regardless of whether request is live or cached. 
+ * 
+ * The keys of the array are file extensions. They are used for identification 
+ * and storage purposes. In ProCache, they are used as a file extension which 
+ * connects a configured Apache MIME type to the appropriate content type header. 
+ * 
+ * @var array
+ * 
+ */
+$config->contentTypes = array(
+	'html' => 'text/html',
+	'txt' => 'text/plain', 
+	'json' => 'application/json',
+	'xml' => 'application/xml', 
+	);
+
+/**
  * File content types
  * 
  * Connects file extentions to content-type headers, used by file passthru functions.
@@ -335,6 +498,7 @@ $config->fileContentTypes = array(
 	'png' => 'image/x-png',
 	);
 
+
 /**
  * Image sizer options
  *
@@ -356,6 +520,7 @@ $config->imageSizerOptions = array(
 	'autoRotation' => true, // automatically correct orientation?
 	'sharpening' => 'soft', // sharpening: none | soft | medium | strong
 	'quality' => 90, // quality: 1-100 where higher is better but bigger
+	'hidpiQuality' => 60, // Same as above quality setting, but specific to hidpi images
 	'defaultGamma' => 2.0, // defaultGamma: 0.5 to 4.0 or -1 to disable gamma correction (default=2.0)
 	);
 
@@ -366,7 +531,7 @@ $config->imageSizerOptions = array(
  * 
  * #property int width Width of thumbnails or 0 for proportional to height (default=0).
  * #property int height Height of thumbnails or 0 for proportional to width (default=100).
- * #property float scale Scale for high DPI/retina output, i.e. 0.5 makes 100px thumb render at 50px (default=1.0).
+ * #property float scale Width/height scale (1=auto detect, 0.5=always hidpi, 1.0=force non-hidpi)
  * #property bool upscaling Upscale if necessary to reach target size? (1=true, 0=false).
  * #property bool cropping Crop if necessary to reach target size? (1=true, 0=false).
  * #property bool autoRotation Automatically correct orientation? (1=true, 0=false).
@@ -378,15 +543,45 @@ $config->imageSizerOptions = array(
  * 
  */
 $config->adminThumbOptions = array(
-	'width' => 0, // max width of admin thumbnail or 0 for proportional to height
-	'height' => 100, // max height of admin thumbnail or 0 for proportional to width
-	'scale' => 1.0, // i.e. setting of 0.5 makes 100px (for example) thumb render at 50px, for high DPI/retina presentation.
+	'width' => 0, // max width of admin thumbnail or 0 for proportional to height (@deprecated, for legacy use)
+	'height' => 100, // max height of admin thumbnail or 0 for proportional to width (@deprecated, for legacy use)
+	'gridSize' => 130, // Squared grid size for images (replaces the 'width' and 'height' settings) 
+	'scale' => 1, // admin thumb scale (1=allow hidpi, 0.5=always hidpi, 1.0=force non-hidpi)
 	'upscaling' => false,
 	'cropping' => true,
 	'autoRotation' => true, // automatically correct orientation?
 	'sharpening' => 'soft', // sharpening: none | soft | medium | strong
 	'quality' => 90,
 	'suffix' => '', 
+	);
+
+/**
+ * File compiler options (as used by FileCompiler class)
+ *
+ * Enables modification of file compiler behaviors. See also $config->moduleCompile
+ * and $config->templateCompile settings. 
+ *
+ * #property bool siteOnly Specify true to prevent compiler from attempting compilation outside files in /site/ (default=false).
+ * #property bool showNotices Show notices in admin about compiled files to superuser when logged in (default=true).
+ * #property bool logNotices Log notices about compiled files and maintenance to file-compiler.txt log (default=true). 
+ * #property string chmodFile Mode to use for created files, i.e. "0644" (uses $config->chmodFile setting by default).
+ * #property string chmodDir Mode to use for created dirs, i.e. "0755" (uses $config->chmodDir setting by default). 
+ * #property array exclusions Exclude paths that exist within any of these paths (default includes $config->paths->wire).
+ * #property array extensions File extensions that we compile (default=php, module, inc).
+ * #property string cachePath Path where compiled files are stored (default is $config->paths->cache . 'FileCompiler/')
+ *
+ * @var array
+ *
+ */
+$config->fileCompilerOptions = array(
+	'siteOnly' => false,  // only allow compilation of files in /site/ directory
+	'showNotices' => true, // show notices about compiled files to superuser when logged in
+	'logNotices' => true, // log notices about compiled files and maintenance to file-compiler.txt log.
+	'chmodFile' => $config->chmodFile, // mode to use for created files, i.e. "0644"
+	'chmodDir' => $config->chmodDir,  // mode to use for created directories, i.e. "0755"
+	'exclusions' => array(), // exclude filenames or paths that start with any of these
+	'extensions' => array('php', 'module', 'inc'), // file extensions we compile
+	'cachePath' => $config->paths->cache . 'FileCompiler/', // path where compiled files are stored
 	);
 
 /**
@@ -456,6 +651,17 @@ $config->protectCSRF = true;
 $config->maxUrlSegments = 4;
 
 /**
+ * Maximum URL/path slashes (depth) for request URLs
+ * 
+ * The maximum number of slashes that any path requested from ProcessWire may have.
+ * Maximum possible value is 60. Minimum recommended value is 10. 
+ * 
+ * @var int
+ * 
+ */
+$config->maxUrlDepth = 30; 
+
+/**
  * Pagination URL prefix
  *
  * Default prefix used for pagination, i.e. "page2", "page3", etc.
@@ -478,6 +684,31 @@ $config->pageNumUrlPrefix = 'page';
  * $config->pageNumUrlPrefixes = array();
  *
  */
+
+/**
+ * Character set for page names
+ * 
+ * Set to 'UTF8' (uppercase) to allow for non-ascii word characters in page names.
+ * You must also update the .htaccess file to allow non-ascii characters through. 
+ * See also $config->pageNameWhitelist, which is used if pageNameCharset is UTF8. 
+ * 
+ * @var string
+ * 
+ * #notes Value may be either 'ascii' (lowercase) or 'UTF8' (uppercase).
+ * 
+ */
+$config->pageNameCharset = 'ascii';
+
+/**
+ * If 'pageNameCharset' is 'UTF8' then specify the whitelist of allowed characters here
+ * 
+ * To allow any characters, you can make this blank, however using a whitelist is strongly recommended.
+ * Please note this whitelist is only used if pageNameCharset is 'UTF8'. 
+ * 
+ * @var string
+ * 
+ */ 
+$config->pageNameWhitelist = '-_.abcdefghijklmnopqrstuvwxyz0123456789æåäßöüđжхцчшщюяàáâèéëêěìíïîõòóôøùúûůñçčćďĺľńňŕřšťýžабвгдеёзийклмнопрстуфыэęąśłżź';
 
 /**
  * Maximum paginations
@@ -595,11 +826,29 @@ $config->dbPort = 3306;
  */
 $config->dbSocket = '';
 
-
+/**
+ * Maximum number of queries WireDatabasePDO will log in memory (when $config->debug is enabled)
+ * 
+ * @var int
+ * 
+ */
+$config->dbQueryLogMax = 500;
 
 
 
 /*** 8. MODULES *********************************************************************************/
+
+/**
+ * Use compiled modules?
+ *
+ * Set to false to disable the use of compiled modules.
+ * Set to true to enable PW to compile modules when it determines it is necessary.
+ * We recommend keeping this set to true unless all modules in use support PW 3.x natively. 
+ *
+ * @var bool
+ *
+ */
+$config->moduleCompile = true; 
 
 /**
  * Modules service URL
@@ -619,7 +868,7 @@ $config->moduleServiceURL = 'http://modules.processwire.com/export-json/';
  * @var string
  *
  */
-$config->moduleServiceKey = 'pw250';
+$config->moduleServiceKey = (__NAMESPACE__ ? 'pw300' : 'pw280');
 
 /**
  * Substitute modules
@@ -635,9 +884,65 @@ $config->substituteModules = array(
 	'InputfieldTinyMCE' => 'InputfieldCKEditor'
 );
 
+/**
+ * PageList default settings
+ * 
+ * Note that 'limit' and 'speed' can also be overridden in the ProcessPageList module settings.
+ * The 'useHoverActions' are currently only known compatible with AdminThemeDefault.
+ * 
+ * #property int limit Number of items to show per pagination (default=50)
+ * #property int speed Animation speed in ms for opening/closing lists (default=200)
+ * #property bool useHoverActions Show page actions when page is hovered? (default=false)
+ * #property int hoverActionDelay Delay in ms between hovering a page and showing the actions (default=100)
+ * #property int hoverActionFade Time in ms to spend fading in or out the actions (default=100)
+ * 
+ * @var array
+ * 
+ */
+$config->pageList = array(
+	'limit' => 50, 
+	'speed' => 200, 
+	'useHoverActions' => true,
+	'hoverActionDelay' => 100, 
+	'hoverActionFade' => 100
+);
+
+/**
+ * PageEdit default settings
+ * 
+ * #property bool viewNew Specify true to force the "view" link to open pages in a new window. 
+ * #property bool confirm Notify user if they attempt to navigate away from unsaved changes?
+ * #property bool ajaxChildren Whether to load the 'children' tab via ajax 
+ * #property bool ajaxParent Whether to load the 'parent' field via ajax
+ * 
+ * @var array
+ * 
+ */
+$config->pageEdit = array(
+	'viewNew' => false,
+	'confirm' => true, 
+	'ajaxChildren' => true, 
+	'ajaxParent' => true,
+);
 
 
 /*** 9. MISC ************************************************************************************/
+
+/**
+ * Additional core logs
+ * 
+ * All activities from the API functions corresponding with the given log names will be logged. 
+ * Options that can be specified are: pages, fields, templates, modules, exceptions, deprecated.
+ * 
+ * Use log "deprecated" to log deprecated calls (during development only).
+ * 
+ * @var array
+ * 
+ */
+$config->logs = array(
+	'modules',
+	'exceptions',
+);
 
 /**
  * Default admin theme
@@ -675,7 +980,88 @@ $config->adminEmail = '';
  * @var string
  * 
  */
-$config->fatalErrorHTML = "<p style='background:crimson;color:white;padding:0.5em;font-family:sans-serif;'><b>{message}</b><br /><small>{why}</small></p>";
+$config->fatalErrorHTML = "<p style='background:crimson;color:white;padding:0.5em;font-family:sans-serif;'><b>{message}</b><br /><br /><small>{why}</small></p>";
+
+/**
+ * Settings for modal windows
+ * 
+ * Most PW modals use the "large" setting. The comma separated dimensions represent: 
+ *
+ * 1. Start at pixels from top
+ * 2. Start at pixels from left
+ * 3. Width: 100% minus this many pixels
+ * 4. Height: 100% minus this many pixels
+ * 
+ * Following that you may optionally specify any of the following, in any order. 
+ * They must continue to be in CSV format, i.e. "key=value,key=value,key=value".
+ * 
+ * 5. modal=true (whether dialog will have modal behavior, specify false to disable)
+ * 6. draggable=false (whether dialog is draggable, specify true to enable)*
+ * 7. resizable=true (whether dialog is resizable, specify false to disable)
+ * 8. hideOverflow=true (whether overflow in parent should be hidden, specify false to disable)
+ * 9. hide=250 (number of ms to fade out window after closing, default=250)
+ * 10. show=100 (number of ms to fade in window when opening, default=100)
+ * 11. closeOnEscape=false (whether hitting the ESC key should close the window, specify true to enable)
+ * 
+ * The "large" modal option below demonstrates a few of these. 
+ * 
+ * *Note the draggable option does not work well unless the modal will open at the top of the
+ * page. Do not use on modals that may be triggered further down the page.
+ * 
+ * @var array
+ * #property string large Settings for large modal windows (most common)
+ * #property string medium Settings for medium modal windows
+ * #property string small Settings for small modal windows
+ * #property string full Settings for full-screen modal windows
+ * 
+ */
+$config->modals = array(
+	'large' => "15,15,30,30,draggable=false,resizable=true,hide=250,show=100", 
+	'medium' => "50,49,100,100", 
+	'small' => "100,100,200,200",
+	'full' => "0,0,0,0",
+);
+
+/**
+ * Cache names to preload
+ * 
+ * Consists of the cache name/token for any caches that we want to be preloaded at boot time.
+ * This is an optimization that can reduce some database overhead. 
+ *
+ * @var array
+ *
+ */
+$config->preloadCacheNames = array(
+	'Modules.info',
+	//'ModulesVerbose.info',
+	'ModulesVersions.info',
+	'Modules.wire/modules/',
+	'Modules.site/modules/',
+);
+
+/**
+ * Allow Exceptions to propagate?
+ * 
+ * When true, ProcessWire will not capture Exceptions and will instead let them fall
+ * through in their original state. Use only if you are running ProcessWire with your
+ * own Exception handler. Most installations should leave this at false.
+ * 
+ * @var bool
+ * 
+ */
+$config->allowExceptions = false;
+
+/**
+ * X-Powered-By header behavior
+ *
+ * - true: Sends the generic PW header, replacing any other powered-by headers (recommended). 
+ * - false: Sends blank powered-by, replacing any other powered-by headers.
+ * - null: Sends no powered-by, existing server powered-by headers will pass through.
+ * 
+ * @var bool|null
+ * 
+ */
+$config->usePoweredBy = true;
 
 /**
  * Settings specific to InputfieldWrapper class
@@ -693,7 +1079,6 @@ $config->fatalErrorHTML = "<p style='background:crimson;color:white;padding:0.5e
  * 
  */
 
-
 /*** 10. RUNTIME ********************************************************************************
  * 
  * The following are runtime-only settings and cannot be changed from /site/config.php
@@ -701,10 +1086,10 @@ $config->fatalErrorHTML = "<p style='background:crimson;color:white;padding:0.5e
  */
 
 /**
- * https: This is automatically set to TRUE when the request is an HTTPS request
+ * https: This is automatically set to TRUE when the request is an HTTPS request, null when not determined.
  *
  */
-$config->https = false;
+$config->https = null;
 
 /**
  * ajax: This is automatically set to TRUE when the request is an AJAX request.
@@ -737,6 +1122,14 @@ $config->version = '';
  */
 $config->versionName = '';
 
+/**
+ * column width spacing for inputfields: used by some admin themes to communicate to InputfieldWrapper
+ * 
+ * Value is null, 0, or 1 or higher. This should be kept at null in this file. 
+ *
+ */
+$config->inputfieldColumnWidthSpacing = null; 
+
 
 
 /*** 11. SYSTEM *********************************************************************************
@@ -751,6 +1144,7 @@ $config->trashPageID = 7;
 $config->loginPageID = 23;
 $config->http404PageID = 27;
 $config->usersPageID = 29;
+$config->usersPageIDs = array(29); // if multiple needed
 $config->rolesPageID = 30;
 $config->externalPageID = 27;
 $config->permissionsPageID = 31;
@@ -759,6 +1153,7 @@ $config->superUserPageID = 41;
 $config->guestUserRolePageID = 37;
 $config->superUserRolePageID = 38;
 $config->userTemplateID = 3;
+$config->userTemplateIDs = array(3); // if multiple needed
 $config->roleTemplateID = 4;
 $config->permissionTemplateID = 5;
 
@@ -779,3 +1174,14 @@ $config->preloadPageIDs = array(
 	40, // guest user
 );
 
+/**
+ * Unix timestamp of when this ProcessWire installation was installed
+ * 
+ * This is set in /site/config.php by the installer. It is used for auto-detection
+ * of when certain behaviors must remain backwards compatible. When this value is 0
+ * then it is assumed that all behaviors must remain backwards compatible. Once 
+ * established in /site/config.php, this value should not be changed. If your site
+ * config file does not specify this setting, then you should not add it.
+ * 
+ */
+$config->installed = 0;

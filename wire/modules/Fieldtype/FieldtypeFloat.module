@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Float Fieldtype
@@ -8,11 +8,8 @@
  * For documentation about the fields used in this class, please see:  
  * /wire/core/Fieldtype.php
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -22,7 +19,7 @@ class FieldtypeFloat extends Fieldtype {
 		return array(
 			'title' => __('Float', __FILE__),
 			'summary' => __('Field that stores a floating point (decimal) number', __FILE__),
-			'version' => 103,
+			'version' => 105,
 			'permanent' => true, 
 			);
 	}
@@ -44,8 +41,19 @@ class FieldtypeFloat extends Fieldtype {
 		return ''; 
 	}
 
+	public function isEmptyValue(Field $field, $value) {
+		if(($value === "0" || $value === 0 || $value === "0.0" || $value === 0.0) && $field->zeroNotEmpty) {
+			// when zeroNotEmpty option is set, we don't count a literal "0" is being a blank value
+			return false;
+		}
+		return empty($value);
+	}
+
 	public function sanitizeValue(Page $page, Field $field, $value) {
 		if(!strlen("$value")) return '';
+		if(!is_float($value) && !is_int($value)) {
+			$value = $this->wire('sanitizer')->float((string) $value, array('blankValue' => ''));
+		}
 		if(is_null($field->precision)) {
 			$value = (float) $value;
 		} else {
@@ -119,8 +127,34 @@ class FieldtypeFloat extends Fieldtype {
 		$f->attr('value', $field->precision); 
 		$f->attr('size', 8); 
 		$inputfields->append($f);
+		
+		$f = $this->wire('modules')->get('FieldtypeInteger')->___getConfigInputfields($field)->getChildByName('zeroNotEmpty'); 
+		if($f) $inputfields->add($f); 
 
 		return $inputfields; 
+	}
+
+	/*
+	public function getMatchQuery($query, $table, $subfield, $operator, $value) {
+		if(!is_int($value) && !is_float($value)) {
+			$value = self::strToFloat((string) $value);
+		}
+		return parent::getMatchQuery($query, $table, $subfield, $operator, $value); 
+	}
+	*/
+
+	/**
+	 * Convert float string with commas to float value
+	 * 
+	 * Most based on: http://php.net/manual/en/function.floatval.php#114486
+	 * 
+	 * @param string $str
+	 * @return float|string
+	 * @deprecated
+	 * 
+	 */
+	public static function strToFloat($str) { 
+		return wire('sanitizer')->float($str, array('blankValue' => ''));
 	}
 
 }

@@ -1,25 +1,26 @@
-
 /**
  * ProcessWire Page List Process, JQuery Plugin
  *
  * Provides the Javascript/jQuery implementation of the PageList process when used with the JSON renderer
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 3.x (development), Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
+function ProcessPageListInit() {
+	if(ProcessWire.config.ProcessPageList) {
+		$('#' + ProcessWire.config.ProcessPageList.containerID).ProcessPageList(ProcessWire.config.ProcessPageList);
+	}
+}
+
 $(document).ready(function() {
-	if(config.ProcessPageList) $('#' + config.ProcessPageList.containerID).ProcessPageList(config.ProcessPageList); 
+	ProcessPageListInit();
 }); 
 
 (function($) {
-
-        $.fn.ProcessPageList = function(customOptions) {
+	
+	$.fn.ProcessPageList = function(customOptions) {
 
 		/**
 	 	 * List of options that may be passed to the plugin
@@ -88,31 +89,57 @@ $(document).ready(function() {
 			selectUnselectHref: '#',
 	
 			// URL where page lists are loaded from 	
-			ajaxURL: config.urls.admin + 'page/list/', 	
+			ajaxURL: ProcessWire.config.urls.admin + 'page/list/', 	
 
 			// URL where page move's should be posted
-			ajaxMoveURL: config.urls.admin + 'page/sort/',
+			ajaxMoveURL: ProcessWire.config.urls.admin + 'page/sort/',
 
 			// pagination number that you want to open (to correspond with openPageIDs)
 			openPagination: 0, 
 
-			// ID sof the pages that we want to automatically open (default none) 
+			// IDs of the pages that we want to automatically open (default none) 
 			openPageIDs: [],
+		
+			// pre-rendered data corresponding to openPageIDs, indexed by '_123' where 123 is id
+			openPageData: {},
 
 			// speed at which the slideUp/slideDown run (in ms)
-			speed: 200
-		}; 
-
+			speed: 200,
+			
+			// whether or not hovering an item reveals its actions
+			useHoverActions: false, 
+		
+			// milliseconds delay between hovering an item and it revealing actions 
+			hoverActionDelay: 250,
+			
+			// milliseconds in fade time to reveal or hide hover actions
+			hoverActionFade: 150,
+		
+			// markup for the spinner used when ajax calls are made
+			spinnerMarkup: "<span class='PageListLoading'><i class='ui-priority-secondary fa fa-fw fa-spin fa-spinner'></i></span>",
+		
+			// session field name that holds page label format, when used
+			labelName: '',
+		};
+	
+		// array of "123.0" (page_id.start) that are currently open (used in non-select mode only)
+		var currentOpenPageIDs = [];
+	
+		// true when operations are occurring where we want to ignore clicks
+		var ignoreClicks = false;
+		
+		var isModal = $("body").hasClass("modal");
+		var isTouch = $("body").hasClass("touch");
+	
 		$.extend(options, customOptions);
 
 		return this.each(function(index) {
 
 			var $container = $(this); 
 			var $root; 
-			var $loading = $("<span class='PageListLoading'></span>");
+			var $loading = $(options.spinnerMarkup); 
 			var firstPagination = 0; // used internally by the getPaginationList() function
 			var curPagination = 0; // current page number used by getPaginationList() function
-			var ignoreClicks = false; // true when operations are occurring where we want to ignore clicks
 
 			/**
 	 		 * Initialize the Page List
@@ -132,10 +159,93 @@ $(document).ready(function() {
 					options.mode = 'actions'; 
 					$container.append($root); 
 					loadChildren(options.rootPageID > 0 ? options.rootPageID : 1, $root, 0, true); 
+					/*
+					// longclick to initiate sort, still marinating on whether to support this
+					$(document).on('longclick', 'a.PageListPage', function() {
+						$(this).parent().find('.PageListActionMove > a').click();
+					});
+					*/
 				}
-
+				
+				if(options.useHoverActions && !$("body").hasClass('touch-device')) {
+					$root.addClass('PageListUseHoverActions');
+					setupHoverActions();
+				}
 			}
 
+			/**
+			 * If hover actions enabled, setup events to hide/show hover actions
+			 * 
+ 			 */
+			function setupHoverActions() {
+				
+				var hoverTimeout = null;
+				var hoverOutTimeout = null;
+				var $hoveredItem = null;
+				
+				function showItem($item) {
+					var $actions = $item.find('.PageListActions');
+					if(!$actions.is(":visible") || $item.hasClass('PageListItemOpen')) {
+						// we confirm :visible so that we don't iterfere with admin themes that already
+						// make the PageList items visible with css hover states
+						$item.addClass('PageListItemHover');
+						$actions.css('display', 'inline').css('opacity', 0)
+							.animate({opacity: 1.0}, options.hoverActionFade);
+					}
+				}
+				
+				function hideItem($item) {
+					var $actions = $item.find('.PageListActions');
+					$item.removeClass('PageListItemHover');
+					if($actions.is(":visible")) { // || $hoveredItem.hasClass('PageListItemOpen')) {
+						$actions.animate({opacity: 0}, options.hoverActionFade, function () {
+							$actions.hide();
+						});
+					}
+				}
+				
+				$(document).on('mouseover', '.PageListItem', function(e) {
+
+					if($root.is(".PageListSorting") || $root.is(".PageListSortSaving")) return;
+					if(!$(this).children('a:first').is(":hover")) return;
+					
+					$hoveredItem = $(this);
+					//console.log('pageX=' + e.pageX);
+					//console.log('offsetX=' + $hoveredItem.offset().left);
+					
+					//var maxPageX = $(this).children('.PageListNumChildren').offset().left + 100;
+					//if(e.pageX > maxPageX) return;
+					
+					if($hoveredItem.hasClass('PageListItemHover')) return;
+					var $item = $(this);
+					if(hoverTimeout) clearTimeout(hoverTimeout);
+					var delay = options.hoverActionDelay;
+					
+					
+					hoverTimeout = setTimeout(function() {
+						if($hoveredItem.attr('class') == $item.attr('class')) {
+							if(!$hoveredItem.children('a:first').is(":hover")) return;
+							var $hideItems = $(".PageListItemHover");
+							showItem($hoveredItem);
+							$hideItems.each(function() { hideItem($(this)); });
+						}
+					}, delay); 
+
+				}).on('mouseout', '.PageListItem', function(e) {
+					if($root.is(".PageListSorting") || $root.is(".PageListSortSaving")) return;
+					var $item = $(this);
+					if($item.hasClass('PageListItemOpen')) return;
+					if(!$item.hasClass('PageListItemHover')) return;
+					var delay = options.hoverActionDelay * 0.7;
+					hoverOutTimeout = setTimeout(function() {
+						if($item.is(":hover")) return;
+						if($item.attr('class') == $hoveredItem.attr('class')) return;
+						hideItem($item);
+					}, delay);
+				});
+			
+			}
+			
 			/**
 	 		 * Sets up a mode where the user is given a "select" link for each page, rather than a list of actions
 			 * 
@@ -148,7 +258,8 @@ $(document).ready(function() {
 				var $pageLabel = $("<p></p>").addClass("PageListSelectName"); 
 				if(options.selectShowPageHeader) $pageLabel.append($loading); 
 
-				var $action = $("<a></a>").addClass("PageListSelectActionToggle").attr('href', '#').text(options.selectStartLabel).click(function() {
+				var $action = $("<a></a>").addClass("PageListSelectActionToggle").attr('href', '#')
+					.text(options.selectStartLabel).click(function() {
 
 					if($(this).text() == options.selectStartLabel) {
 
@@ -169,11 +280,16 @@ $(document).ready(function() {
 				$root.append($("<div></div>").addClass('PageListSelectHeader').append($pageLabel).append($actions)); 
 
 				if(options.selectShowPageHeader) { 
-					$.getJSON(options.ajaxURL + "?id=" + options.selectedPageID + "&render=JSON&start=0&limit=0&lang=" + options.langID + "&mode=" + options.mode, function(data) {
+					var ajaxURL = options.ajaxURL + 
+						"?id=" + options.selectedPageID + 
+						"&render=JSON&start=0&limit=0&lang=" + options.langID + 
+						"&mode=" + options.mode;
+					if(options.labelName.length) ajaxURL += '&labelName=' + options.labelName;
+					$.getJSON(ajaxURL, function(data) {
 						var parentPath = '';
 						if(options.selectShowPath) {
 							parentPath = data.page.path;
-							parentPath = parentPath.substring(0, parentPath.length-1); 
+							if(parentPath.substring(-1) == '/') parentPath = parentPath.substring(0, parentPath.length-1); 
 							parentPath = parentPath.substring(0, parentPath.lastIndexOf('/')+1); 
 							parentPath = '<span class="detail">' + parentPath + '</span> ';
 						} 
@@ -203,7 +319,7 @@ $(document).ready(function() {
 			 */
 			function getPaginationList(id, start, limit, total) {
 
-				// console.log(start + ", " + limit + ", " + total); 
+				// console.log('getPaginationList(id=' + id + ', start=' + start + ", limit=" + limit + ", total=" + total + ')'); 
 
 				var maxPaginationLinks = 9; 
 				var numPaginations = Math.ceil(total / limit); 
@@ -241,14 +357,22 @@ $(document).ready(function() {
 					var $curList = $(this).parents("ul.PageListPagination");
 					var info = $curList.data('paginationInfo'); 
 					if(!info) return false;
-					var $newList = getPaginationList(id, parseInt($(this).attr('href')) * info.limit, info.limit, info.total);
-					var $loading = $("<li><span class='PageListLoading'></span></li>"); 
+					var start = parseInt($(this).attr('href')) * info.limit;
+					if(start === NaN) start = 0;
+					var $newList = getPaginationList(id, start, info.limit, info.total);
+					var $spinner = $(options.spinnerMarkup);
+					var $loading = $("<li>&nbsp;</li>").append($spinner.hide());
 					$curList.siblings(".PageList").remove(); // remove any open lists below current
 					$curList.replaceWith($newList); 
 					$newList.append($loading); 
+					$spinner.fadeIn('fast');
 					var $siblings = $newList.siblings().css('opacity', 0.5);
 					loadChildren(id, $newList.parent(), $(this).attr('href') * info.limit, false, false, true, function() {
-						$loading.remove();
+						$spinner.fadeOut('fast', function() {
+							$loading.remove();
+						});
+						$newList.parent('.PageList').prev('.PageListItem').data('start', start);
+						updateOpenPageIDs();
 					}); 
 					return false;	
 				}
@@ -294,13 +418,13 @@ $(document).ready(function() {
 				//if(curPagination+1 < maxPaginationLinks && curPagination+1 < numPaginations) {
 				if(curPagination+1 < numPaginations) {
 					$nextBtn = $blankItem.clone();
-					$nextBtn.find("a").html("<i class='fa fa-angle-right'></i>").attr('href', curPagination+1); // .addClass('ui-priority-secondary'); 
+					$nextBtn.find("a").html("<i class='fa fa-angle-right'></i>").attr('href', curPagination+1); 
 					$list.append($nextBtn);
 				}
 
 				if(curPagination > 0) {
 					$prevBtn = $blankItem.clone();
-					$prevBtn.find("a").attr('href', curPagination-1).html("<i class='fa fa-angle-left'></i>"); // .addClass('ui-priority-secondary');
+					$prevBtn.find("a").attr('href', curPagination-1).html("<i class='fa fa-angle-left'></i>"); 
 					$list.prepend($prevBtn); 
 				}
 
@@ -326,7 +450,7 @@ $(document).ready(function() {
 			 *
 			 */
 			function loadChildren(id, $target, start, beginList, pagination, replace, callback) {
-
+				
 				if(pagination == undefined) pagination = true; 
 				if(replace == undefined) replace = false;
 
@@ -341,15 +465,14 @@ $(document).ready(function() {
 
 					var $children = listChildren($(data.children)); 
 					var nextStart = data.start + data.limit; 
-
+					//var openPageKey = id + '-' + start;
+					
 					if(data.page.numChildren > nextStart) {
 						var $a = $("<a></a>").attr('href', nextStart).data('pageId', id).text(options.moreLabel).click(clickMore); 
 						$children.append($("<ul></ul>").addClass('PageListActions actions').append($("<li></li>").addClass('PageListActionMore').append($a)));
-						if(pagination) {
-							$children.prepend(getPaginationList(id, data.start, data.limit, data.page.numChildren));
-						}
-
-
+					}
+					if(pagination && (data.page.numChildren > nextStart || data.start > 0)) {
+						$children.prepend(getPaginationList(id, data.start, data.limit, data.page.numChildren));
 					}
 
 					$children.hide();
@@ -372,7 +495,11 @@ $(document).ready(function() {
 						$target.after($children); 
 					}
 
-					$loading.hide();
+					if($loading.parent().is('.PageListRoot')) {
+						$loading.hide();
+					} else {
+						$loading.fadeOut('fast');
+					}
 
 					if(replace) {
 						$children.show();
@@ -384,8 +511,11 @@ $(document).ready(function() {
 							if(callback != undefined) callback();
 						}); 
 					}
+					
+					$children.prev('.PageListItem').data('start', data.start);
 
 					// if a pagination is requested to be opened, and it exists, then open it
+					/*
 					if(options.openPagination > 1) {
 						//var $a = $(".PageListPagination" + (options.openPagination-1) + ">a");
 						var $a = $(".PageListPagination a[href=" + (options.openPagination-1) + "]");
@@ -397,11 +527,41 @@ $(document).ready(function() {
 							$(".PageListPagination9 a").click();
 						}
 					}
+					*/
+					$target.removeClass('PageListForceReload'); // if it happens to be present
 
 				}; 
 
-				if(!replace) $target.append($loading.show()); 
-				$.getJSON(options.ajaxURL + "?id=" + id + "&render=JSON&start=" + start + "&lang=" + options.langID + "&open=" + options.openPageIDs[0] + "&mode=" + options.mode, processChildren); 
+				if(!replace) $target.append($loading.fadeIn('fast')); 
+			
+		
+				var key = id + '-' + start;
+				if(typeof options.openPageData[key] != "undefined" 
+					&& !$target.hasClass('PageListID7') // trash
+					&& !$target.hasClass('PageListForceReload')) {
+					processChildren(options.openPageData[key]);
+					return;
+				} 
+				
+				// @teppokoivula PR #1052
+				var ajaxURL = options.ajaxURL + 
+					"?id=" + id + 
+					"&render=JSON&start=" + start + 
+					"&lang=" + options.langID + 
+					"&open=" + options.openPageIDs[0] + 
+					"&mode=" + options.mode;
+				if(options.labelName.length) ajaxURL += '&labelName=' + options.labelName;
+				$.getJSON(ajaxURL)
+					.done(function(data, textStatus, jqXHR) {
+						processChildren(data);
+					})
+					.fail(function(jqXHR, textStatus, errorThrown) {
+						processChildren({
+							error: 1,
+							message: !jqXHR.status ? options.ajaxNetworkError : options.ajaxUnknownError
+						});
+					});
+				// end #1052
 			}
 
 			/**
@@ -418,19 +578,26 @@ $(document).ready(function() {
 				$children.each(function(n, child) {
 					$ul.append(listChild(child)); 
 				}); 	
-
-				$("a.PageListPage", $ul).click(clickChild); 
-				/*
-				.dblclick(function() {
-					var href = $(this).siblings('ul').find('li.PageListActionEdit a').attr('href');
-					if(href) window.open(href, "_self");
-				});
-				*/
-				$(".PageListActionMove a", $ul).click(clickMove); 
-				$(".PageListActionSelect a", $ul).click(clickSelect); 
-				$(".PageListTriggerOpen a.PageListPage", $ul).click();
-
+				
+				addClickEvents($ul);
+				
 				return $list; 
+			}
+
+			/**
+			 * 
+			 * @param $ul Any element that contains items needing click events attached
+			 * 
+			 */
+			function addClickEvents($ul) {
+
+				$("a.PageListPage", $ul).click(clickChild);
+				$(".PageListActionMove a", $ul).click(clickMove);
+				$(".PageListActionSelect a", $ul).click(clickSelect);
+				$(".PageListTriggerOpen:not(.PageListID1) > a.PageListPage", $ul).click();
+				$(".PageListActionExtras > a:not(.clickExtras)", $ul).addClass('clickExtras').on('click', clickExtras);
+				
+				// if(options.useHoverActions) $(".PageListActionExtras > a", $ul).on('mouseover', clickExtras);
 			}
 
 			/**
@@ -440,7 +607,7 @@ $(document).ready(function() {
 			 *
 			 */
 			function listChild(child) {
-
+				
 				var $li = $("<div></div>").data('pageId', child.id).addClass('PageListItem').addClass('PageListTemplate_' + child.template); 
 				var $a = $("<a></a>")
 					.attr('href', '#')
@@ -458,9 +625,9 @@ $(document).ready(function() {
 				if(child.status & 4) $li.addClass('PageListStatusLocked'); 
 				if(child.addClass && child.addClass.length) $li.addClass(child.addClass); 
 				if(child.type && child.type.length > 0) if(child.type == 'System') $li.addClass('PageListStatusSystem'); 
-				if(child.rm) $li.addClass('trashable'); 
 
 				$(options.openPageIDs).each(function(n, id) {
+					id = parseInt(id);
 					if(child.id == id) $li.addClass('PageListTriggerOpen'); 
 				}); 
 
@@ -478,17 +645,214 @@ $(document).ready(function() {
 					if(child.id == $container.val()) links = [{ name: options.selectUnselectLabel, url: options.selectUnselectHref }]; 
 				}
 
+				var $lastAction = null;
 				$(links).each(function(n, action) {
+					var actionName;
 					if(action.name == options.selectSelectLabel) actionName = 'Select';
 						else if(action.name == options.selectUnselectLabel) actionName = 'Select'; 
 						else actionName = action.cn; // cn = className
 
-					var $a = $("<a></a>").html(action.name).attr('href', action.url); 
-					$actions.append($("<li></li>").addClass('PageListAction' + actionName).append($a)); 
+					var $a = $("<a></a>").html(action.name).attr('href', action.url);
+					if(!isModal && !isTouch) {
+						if(action.cn == 'Edit') {
+							$a.addClass('pw-modal pw-modal-large pw-modal-longclick');
+							$a.attr('data-buttons', '#ProcessPageEdit > .Inputfields > .InputfieldSubmit .ui-button');
+						} else if(action.cn == 'View') {
+							$a.addClass('pw-modal pw-modal-large pw-modal-longclick');
+						}
+					}
+					if(typeof action.extras != "undefined") {
+						$a.data('extras', action.extras);
+					}
+					var $action = $("<li></li>").addClass('PageListAction' + actionName).append($a);
+					if(actionName == 'Extras') $lastAction = $action; 
+						else $actions.append($action);
 				}); 
+				if($lastAction) {
+					$actions.append($lastAction);
+					$lastAction.addClass('ui-priority-secondary');
+				}
 
 				$li.append($actions); 
 				return $li;
+			}
+
+			/**
+			 * Extra actions button click handler
+			 * 
+			 */
+			function clickExtras(e) {
+
+				var $a = $(this);
+				var extras = $a.data('extras');
+				if(typeof extras == "undefined") return false;
+			
+				var $li = $a.closest('.PageListItem');
+				var $actions = $a.closest('.PageListActions');
+				var $lastItem = null;
+				var $icon = $a.children('i.fa');
+				var $extraActions = $actions.find("li.PageListActionExtra");
+			
+				/*
+				if($extraActions.length && e.type != 'click') {
+					// mouseover only opens, but a click is required to close
+					return;
+				}
+				*/
+				
+				$icon.toggleClass('fa-flip-horizontal');
+			
+				if($extraActions.length) {
+					$extraActions.fadeOut(100, function() {
+						$extraActions.remove();
+					}); 
+					return false;
+				}
+				
+				for(var extraKey in extras) {
+					
+					var extra = extras[extraKey];
+					var $extraLink = $("<a />")
+						.addClass('PageListActionExtra PageListAction' + extra.cn)
+						.attr('href', extra.url)
+						.html(extra.name);
+				
+					/*
+					if(extra.cn == 'Trash') {
+						// handler for trash action
+						$extraLink.click(function() {
+							trashPage($li);
+							return false;
+						});
+						
+					} else 
+					*/
+					if(typeof extra.ajax != "undefined" && extra.ajax == true) {
+						// ajax action
+						$extraLink.click(function () {
+							
+							$li.find('.PageListActions').hide();
+							var $spinner = $(options.spinnerMarkup);
+							var href = $(this).attr('href');
+							var actionName = href.match(/[\?&]action=([-_a-zA-Z0-9]+)/)[1];
+							var pageID = parseInt(href.match(/[\?&]id=([0-9]+)/)[1]);
+							var tokenName = $("#PageListContainer").attr('data-token-name');
+							var tokenValue = $("#PageListContainer").attr('data-token-value');
+							var postData = {
+								action: actionName,
+								id: pageID, 
+							};
+							postData[tokenName] = tokenValue;
+							$li.append($spinner);
+							
+							$.post(href + '&render=json', postData, function (data) {
+								
+								if (data.success) {
+									
+									$li.fadeOut('fast', function() {
+										
+										var addNew = false;
+										var removeItem = data.remove;
+										var refreshChildren = data.refreshChildren;
+										var $liNew = false;
+										
+										if(typeof data.child != "undefined") {
+											// prepare update existing item
+											$liNew = listChild(data.child);
+										} else if(typeof data.newChild != "undefined") {
+											// prepare append new item
+											$liNew = listChild(data.newChild);
+											addNew = true; 
+										}
+										
+										// display a message for a second to let them know what was done
+										if($liNew) {
+											var $msg = $("<span />").addClass('notes').html(data.message);
+											$msg.prepend("&nbsp;<i class='fa fa-check-square ui-priority-secondary'></i>&nbsp;");
+											$liNew.append($msg);
+											addClickEvents($liNew);
+										}
+										
+										if(addNew) {
+											// append new item
+											$spinner.fadeOut('normal', function() { $spinner.remove() }); 
+											$liNew.hide();
+											$li.after($liNew);
+											$liNew.slideDown();
+										} else if($liNew) {
+											// update existing item
+											if($li.hasClass('PageListItemOpen')) $liNew.addClass('PageListItemOpen');
+											$li.replaceWith($liNew);
+										}
+										
+										$li.fadeIn('fast', function () {
+											// display message for 1 second, then remove
+											setTimeout(function () {
+												$msg.fadeOut('normal', function () { 
+													if(removeItem) {
+														var $numChildren = $liNew.closest('.PageList').prev('.PageListItem').children('.PageListNumChildren'); 
+														if($numChildren.length) {
+															var numChildren = parseInt($numChildren.text());
+															if(numChildren > 0) $numChildren.text(numChildren-1); 
+														}
+														$liNew.next('.PageList').fadeOut('fast');
+														$liNew.fadeOut('fast', function() {
+															$liNew.remove();
+														});
+													} else {
+														$msg.remove();
+													}
+												});
+											}, 1000);
+										});
+									
+										// refresh the children of the page represented by refreshChildren
+										if(refreshChildren) {
+											var $refreshParent = $(".PageListID" + refreshChildren);
+											if($refreshParent.length) {
+												$refreshParent.addClass('PageListForceReload'); 
+												var $a = $refreshParent.children('a.PageListPage'); 
+												if($refreshParent.hasClass('PageListItemOpen')) {
+													$a.click();
+													setTimeout(function() { $a.click(); }, 250);
+												} else {
+													$a.click();
+												}
+											}
+										}
+									});
+									
+								} else {
+									// data.success === false, so display error
+									$spinner.remove();
+									alert(data.message);
+								}
+							});
+							return false;
+						});
+					} else {
+						// some other action where the direct URL can be used, so we don't need to do anything
+					}
+					
+					var $extraLinkItem = $("<li />").addClass('PageListActionExtra PageListAction' + extra.cn).append($extraLink);
+					$extraLink.hide();
+					
+					if(extra.cn == 'Trash') {
+						$li.addClass('trashable');
+						// ensure the Trash item is always the last one
+						$lastItem = $extraLinkItem;
+					} else {
+						$actions.append($extraLinkItem);
+					}
+				}
+				
+				if($lastItem) $actions.append($lastItem);
+				
+				$actions.find(".PageListActionExtra a").fadeIn(50, function() {
+					$(this).css('display', 'inline-block');
+				});
+				
+				return false;
 			}
 
 			/**
@@ -503,28 +867,90 @@ $(document).ready(function() {
 				var $li = $t.parent('.PageListItem'); 
 				var id = $li.data('pageId');
 
-				if(ignoreClicks && !$li.is(".PageListTriggerOpen")) return false; 
-
+				if(ignoreClicks && !$li.hasClass("PageListTriggerOpen")) return false; 
 
 				if($root.is(".PageListSorting") || $root.is(".PageListSortSaving")) {
 					return false; 
 				}
 
-				if($li.is(".PageListItemOpen")) {
-					$li.removeClass("PageListItemOpen").next(".PageList").slideUp(options.speed, function() { 
-						$(this).remove(); 
-					}); 
+				if($li.hasClass("PageListItemOpen")) {
+					var collapseThis = true;
+					if($li.hasClass('PageListID1') && !$li.hasClass('PageListForceReload') && options.mode != 'select') {
+						var $collapseItems = $(this).closest('.PageListRoot').find('.PageListItemOpen:not(.PageListID1)');
+						if($collapseItems.length) {
+							// collapse all open items, except homepage, when homepage link is collapsed
+							$root.find('.PageListItemOpen:not(.PageListID1)').each(function() {
+								$(this).children('a.PageListPage').click();
+							});
+							collapseThis = false;
+						}
+					}
+					if(collapseThis) {	
+						$li.removeClass('PageListItemOpen').next(".PageList").slideUp(options.speed, function() {
+							$(this).remove();
+						});
+					}
 				} else {
-					$li.addClass("PageListItemOpen"); 
-					if(parseInt($li.children('.PageListNumChildren').text()) > 0) {
+					$li.addClass('PageListItemOpen');
+					var numChildren = parseInt($li.children('.PageListNumChildren').text()); 
+					if(numChildren > 0 || $li.hasClass('PageListForceReload')) {
 						ignoreClicks = true; 
-						loadChildren(id, $li, 0, false); 
+						var start = getOpenPageStart(id);
+						loadChildren(id, $li, start, false); 
 					}
 				}
-					
+	
+				if(options.mode != 'select') {
+					setTimeout(function() { updateOpenPageIDs() }, 250); 
+				}
+
 				return false;
 			}
 
+			/**
+			 * Get the pagination "start" index for the given open page ID 
+			 * 
+			 * @param id
+			 * @returns {number}
+			 * 
+			 */
+			function getOpenPageStart(id) {
+				var start = 0;
+				for(n = 0; n < options.openPageIDs.length; n++) {
+					var key = options.openPageIDs[n];
+					if(key.indexOf('-') == -1) continue;
+					var parts = options.openPageIDs[n].split('-');
+					var _id = parseInt(parts[0]);
+					if(_id == id) {
+						start = parseInt(parts[1]);
+						break;
+					}
+				}
+				return start;
+			}
+
+			/**
+			 * Update the currentOpenPageIDs list and cookie to reflect the current open pages
+			 * 
+			 */
+			function updateOpenPageIDs() {
+				currentOpenPageIDs = [];
+				$('.PageListItemOpen').each(function() {
+					var id = $(this).data('pageId');
+					var start = $(this).data('start');
+					if(typeof start == "undefined" || start === null) {
+						start = 0;
+					} else {
+						var start = parseInt(start);
+					}
+					if(jQuery.inArray(id, currentOpenPageIDs) == -1) {
+						currentOpenPageIDs.push(id + '-' + start); // id.start
+					}
+				});
+				// console.log(currentOpenPageIDs);
+				$.cookie('pagelist_open', currentOpenPageIDs);
+			}
+			
 			/**
 			 * Event called when the 'more' action/link is clicked on
 			 *
@@ -553,8 +979,16 @@ $(document).ready(function() {
 			function clickMove() {
 
 				if(ignoreClicks) return false;
+				
 
-				var $t = $(this); 
+				var $t = $(this);
+				
+				if($(".PageListItem:visible").length == 1) {
+					// no other items to sort/move to
+					$t.css('text-decoration', 'line-through').addClass('ui-state-disabled');
+					return false;
+				}
+				
 				var $li = $t.parent('li').parent('ul.PageListActions').parent('.PageListItem'); 
 
 				// $li.children(".PageListPage").click(); 
@@ -593,16 +1027,7 @@ $(document).ready(function() {
 				var $actions = $li.children("ul.PageListActions");
 				var $moveAction = $("<span class='PageListMoveNote detail'><i class='fa fa-fw fa-sort'></i> " + options.moveInstructionLabel + "<i class='fa fa-fw fa-angle-left'></i></span>");
 				$moveAction.append($cancelLink);
-				
-				if($li.hasClass('trashable')) { 
-					var $trashLink = $("<a class='PageListActionTrash ui-priority-secondary' href='#'><i class='fa fa-trash-o'></i> " + options.trashLabel + "</i></a>").click(function() {
-						trashPage($li);
-						return false;
-					});
-					$li.addClass('ui-helper-clearfix');
-					$moveAction.append($trashLink);
-				}
-				
+			
 				$actions.before($moveAction); 
 				
 				$li.addClass('PageListSortItem'); 
@@ -691,7 +1116,7 @@ $(document).ready(function() {
 				cancelMove($li); 
 
 				// setup to save the change
-				$li.append($loading.show()); 
+				$li.append($loading.fadeIn('fast')); 
 				var sortCSV = '';
 			
 				// create a CSV string containing the order of Page IDs	
@@ -712,7 +1137,7 @@ $(document).ready(function() {
 				// save the change	
 				$.post(options.ajaxMoveURL, postData, function(data) {
 
-					$loading.hide();
+					$loading.fadeOut('fast');
 
 					$a.fadeOut('fast', function() {
 						$(this).fadeIn("fast")

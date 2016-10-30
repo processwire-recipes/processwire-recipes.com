@@ -1,15 +1,12 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Repeater Page Array 
  *
  * Special PageArray for use by repeaters that includes a getNewItem() method
  *
- * ProcessWire 2.x 
- * Copyright (C) 2012 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -17,12 +14,16 @@ class RepeaterPageArray extends PageArray {
 
 	/**
 	 * The page that contains the repeater field (not the parent in the repeaters structure)
+	 * 
+	 * @var Page
 	 *
 	 */ 
 	protected $parent = null;
 
 	/**
 	 * The repeater field (from $this->fields API var)
+	 * 
+	 * @var Field
 	 *
 	 */
 	protected $field = null;
@@ -65,7 +66,7 @@ class RepeaterPageArray extends PageArray {
 
 		// first try to get a ready item, if available
 		foreach($this as $item) {
-			if($item->is(Page::statusUnpublished) && $item->is(Page::statusHidden)) {
+			if($item->isUnpublished() && $item->isHidden()) {
 				$page = $item;
 				break;
 			}
@@ -99,7 +100,7 @@ class RepeaterPageArray extends PageArray {
 	 */
 	public function makeNew() {
 		$class = get_class($this);
-		$newArray = new $class($this->parent, $this->field);
+		$newArray = $this->wire(new $class($this->parent, $this->field));
 		return $newArray;
 	}
 

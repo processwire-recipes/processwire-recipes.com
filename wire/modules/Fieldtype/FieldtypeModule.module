@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Module Fieldtype
@@ -8,11 +8,8 @@
  * For documentation about the fields used in this class, please see:  
  * /wire/core/Fieldtype.php
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2014 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -43,8 +40,8 @@ class FieldtypeModule extends Fieldtype {
 	}
 
 	public function ___wakeupValue(Page $page, Field $field, $value) {
-		if($field->instantiateModule) return $this->fuel('modules')->get($value); 
-		return $this->fuel('modules')->getModuleClass((int) $value); 
+		if($field->instantiateModule) return $this->wire('modules')->get($value); 
+		return $this->wire('modules')->getModuleClass((int) $value); 
 	}
 
 	public function ___sleepValue(Page $page, Field $field, $value) {
@@ -64,7 +61,7 @@ class FieldtypeModule extends Fieldtype {
 
 		foreach($this->modules as $module) {
 			$found = false; 
-			$parents = class_parents("$module"); 
+			$parents = wireClassParents("$module"); 
 			if($field->moduleTypes) foreach($field->moduleTypes as $moduleType) {
 				if(in_array($moduleType, $parents)) { 
 				//if(strpos("$module", $moduleType) === 0) {
@@ -108,7 +105,11 @@ class FieldtypeModule extends Fieldtype {
 		$f->attr('name', 'moduleTypes'); 
 
 		foreach($this->modules as $module) {
-			if(!preg_match('/^([A-Za-z][a-z0-9_]+)/', $module->className(), $matches)) continue; 
+			if(strpos($module->className(), 'AdminTheme') === 0) {
+				$matches = array('', 'AdminTheme');
+			} else {
+				if(!preg_match('/^([A-Za-z][a-z0-9_]+)/', $module->className(), $matches)) continue;
+			}
 			$moduleType = $matches[1];
 			if($moduleType == $lastType) continue; 	
 			$f->addOption($moduleType); 
@@ -141,15 +142,16 @@ class FieldtypeModule extends Fieldtype {
 		$f->attr('name', 'inputfieldClass'); 
 		$f->addOption('', $this->_('Select')); 
 		$f->addOption('InputfieldRadios', $this->_('Radios')); 
-		$f->columnWidth = 50; 
+		$f->columnWidth = 50;
+		$f->attr('value', $field->inputfieldClass);
 		$inputfields->add($f); 
 
 		return $inputfields; 			
 	}
 
 	public function ___getCompatibleFieldtypes(Field $field) {
-		$fieldtypes = new Fieldtypes();
-		foreach($this->fuel('fieldtypes') as $fieldtype) {
+		$fieldtypes = $this->wire(new Fieldtypes());
+		foreach($this->wire('fieldtypes') as $fieldtype) {
 			if($fieldtype instanceof FieldtypeModule) $fieldtypes->add($fieldtype);
 		}
 		return $fieldtypes;

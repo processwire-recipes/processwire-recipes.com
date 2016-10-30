@@ -1,33 +1,43 @@
-<?php
+<?php 
 
 /**
  * Default.php
  * 
  * Main markup file for AdminThemeReno
- * Copyright (C) 2014 by Tom Reno (Renobird)
+ * Copyright (C) 2015 by Tom Reno (Renobird)
  * http://www.tomrenodesign.com
  *
- * ProcessWire 2.x
- * Copyright (C) 2014 by Ryan Cramer
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  * 
  */
 
 if(!defined("PROCESSWIRE")) die();
 
 if(!isset($content)) $content = '';
-$version = $adminTheme->version . 'a';
-$searchForm = $user->hasPermission('page-edit') ? $modules->get('ProcessPageSearch')->renderSearchForm($adminTheme->getSearchPlaceholder()) : '';
+$version = $adminTheme->version . 'j';
+$ext = $config->debug ? "js" : "min.js";
 
-$config->styles->prepend($config->urls->adminTemplates . "styles/" . ($adminTheme->colors ? "$adminTheme->colors" : "main") . ".css?v=$version"); 
+// Search form
+$searchForm = $user->hasPermission('page-edit') ? $modules->get('ProcessPageSearch')->renderSearchForm() : '';
+
+// Admin Theme colors
+$adminTheme->colors = $adminTheme->colors ? $adminTheme->colors : "main";
+$defaultColors = "styles/" . $adminTheme->colors . ".css"; 
+$customColors = "AdminTheme/$adminTheme/styles/" . $adminTheme->colors . ".css";
+$colorFile = file_exists($config->paths->adminTemplates . $defaultColors) ? $config->urls->adminTemplates . $defaultColors : $config->urls->siteModules . $customColors;
+
+// Styles
+$config->styles->prepend($colorFile . "?v=" . $version);
 $config->styles->append($config->urls->root . "wire/templates-admin/styles/font-awesome/css/font-awesome.min.css?v=$version");
-$config->scripts->append($config->urls->root . "wire/templates-admin/scripts/inputfields.js?v=$version"); 
-$config->scripts->append($config->urls->adminTemplates . "scripts/main.js?v=$version");
+
+// Scripts
+$config->scripts->append($config->urls->root . "wire/templates-admin/scripts/inputfields.$ext?v=$version");
+$config->scripts->append($config->urls->root . "wire/templates-admin/scripts/main.$ext?v=$version");
+$config->scripts->append($config->urls->adminTemplates . "scripts/main.$ext?v=$version");
 
 require_once(dirname(__FILE__) . "/AdminThemeRenoHelpers.php");
-$helpers = new AdminThemeRenoHelpers();
+$helpers = $this->wire(new AdminThemeRenoHelpers());
 $extras = $adminTheme->getExtraMarkup();
 
 ?>
@@ -37,6 +47,7 @@ $extras = $adminTheme->getExtraMarkup();
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 	<meta name="robots" content="noindex, nofollow" />
+	<meta name="google" content="notranslate" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -49,38 +60,39 @@ $extras = $adminTheme->getExtraMarkup();
 </head>
 
 <body class="<?php echo $helpers->renderBodyClass(); ?>">
-
+	
 	<div id="wrap">
+		
+		<div id='branding'>
+			<a id="logo" href="<?php echo $config->urls->admin?>">
+				<img src="<?php echo $config->urls->adminTemplates?>styles/images/logo.png" alt="ProcessWire" />
+				<img src="<?php echo $config->urls->adminTemplates?>styles/images/logo-sm.png" class='sm' alt="ProcessWire" />
+			</a>
+		</div>
+
+		<a href="#" class='main-nav-toggle'><i class="fa fa-bars"></i></a>
+		
 		<div id="masthead" class="masthead ui-helper-clearfix">
+			
+			<?php echo $extras['masthead']; ?>
 
-				<a href="" class='main-nav-toggle'><i class="fa fa-bars"></i></a>
-				<a id="logo" href="<?php echo $config->urls->admin?>">
-					<img src="<?php echo $config->urls->adminTemplates?>styles/images/logo.png" alt="ProcessWire" />
-					<img src="<?php echo $config->urls->adminTemplates?>styles/images/logo-sm.png" class='sm' alt="ProcessWire" />
-				</a>
-
-				<?php echo tabIndent($searchForm, 3); ?>
-
-				<ul id="topnav">
-					<?php echo $helpers->renderTopNavItems(); ?>
-				</ul>
-
-				<?php echo $extras['masthead']; ?>
+			<ul id="topnav">
+				<?php echo $helpers->renderTopNav(); ?>
+			</ul>
 
 		</div>
 
+		<div id="search"><?php echo tabIndent($searchForm, 3);?> <a href='#' class='search-close'><i class="fa fa-times"></i></a></div>
+
 		<div id="sidebar" class="mobile">
-			
 			<ul id="main-nav">
 				<?php echo $helpers->renderSideNavItems($page); ?>
 			</ul>
-			
 			<?php echo $extras['sidebar']; ?>
-
 		</div>
 
 		<div id="main">
-
+			
 			<?php 
 			echo $helpers->renderAdminNotices($notices);
 			echo $extras['notices'];
@@ -92,7 +104,7 @@ $extras = $adminTheme->getExtraMarkup();
 
 			<div id="headline">
 				<?php if(in_array($page->id, array(2,3,8))) echo $helpers->renderAdminShortcuts(); /* 2,3,8=page-list admin page IDs */ ?>
-				<h1 id="title"><?php echo $helpers->getHeadline() ?></h1>
+				<h1 id="title"><?php echo $helpers->getHeadline(); ?></h1>
 			</div>
 
 			<div id="content" class="content fouc_fix">
@@ -110,12 +122,12 @@ $extras = $adminTheme->getExtraMarkup();
 					<?php if(!$user->isGuest()): ?>
 						<span id="userinfo">
 						<?php if($user->hasPermission('profile-edit')): ?> 
-							<a class="action" href="<?php echo $config->urls->admin; ?>profile/"><i class="fa fa-user"></i> <?php echo $user->name; ?></a>  
+							<a class="action" href="<?php echo $config->urls->admin; ?>profile/"><i class="fa <?php echo $adminTheme->profile;?>"></i> <?php echo $helpers->_('Profile'); ?></a> 
 						<?php endif; ?>
-							<a class="action" href="<?php echo $config->urls->admin; ?>login/logout/"><i class="fa fa-times"></i> <?php echo $helpers->_('Logout'); ?></a>
+							<a class="action" href="<?php echo $config->urls->admin; ?>login/logout/"><i class="fa <?php echo $adminTheme->signout;?>"></i> <?php echo $helpers->_('Logout'); ?></a>
 						</span>
+						ProcessWire <?php echo $config->versionName . ' <!--v' . $config->systemVersion; ?>--> &copy; <?php echo date("Y"); ?>
 					<?php endif; ?>
-					ProcessWire <?php echo $config->versionName . ' <!--v' . $config->systemVersion; ?>--> &copy; <?php echo date("Y"); ?> 
 				</p>
 				
 				<?php

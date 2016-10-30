@@ -89,6 +89,11 @@ em {
 	font-style: italic; 
 }
 
+code {
+	font-family: Menlo, Monaco, 'Andale Mono', 'Lucida Console', 'Courier New', monospace;
+	font-size: 14px; 
+}
+
 .description {
 	color: $medium-text-color; 
 	margin: 0.5em 0;
@@ -143,6 +148,14 @@ em {
 	padding: 1em; 
 	position: relative;
 	z-index: 9999;
+}
+
+.pw-no-select {
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-o-user-select: none;
+	user-select: none; /* prevent selection of this element */
 }
 
 
@@ -268,29 +281,30 @@ em {
 #footer {
 	margin: 2em 0 2em 0; 
 	font-size: $footer-font-size; 
-	color: $footer-color; 
+	color: $footer-color;
+	
+	#userinfo {
+		display: block;
+		float: right;
+	}
+}
 
+#footer, #debug {
 	a {
-		color: $footer-link-color; 
+		color: $footer-link-color;
 	}
 	a:hover {
-		text-decoration: underline; 
+		text-decoration: underline;
 	}
 
 	p {
 		margin-top: 0;
 	}
 
-	#userinfo {
-		display: block; 
-		float: right; 
-	}
-
 }
 
-
 #debug {
-	margin-top: 2em; 
+	// margin-top: 2em; 
 
 	.container {
 		width: 100%; 
@@ -304,7 +318,7 @@ em {
 		margin: 1em 0; 
 	}
 
-	h4 {
+	h3, h4 {
 		font-weight: $bold-weight; 
 	}
 
@@ -325,6 +339,10 @@ em {
 
 	}
 
+}
+
+.pw-panel-content #debug {
+	padding: 0.25em 0.75em 0.25em 0.25em; 
 }
 
 .pw-init #debug {
@@ -370,12 +388,13 @@ body.modal {
 
 	&.hasWireTabs #breadcrumbs {
 		display: block;
+		padding: 0.5em 0 0 0;
 		li {
 			display: none; 
 
 			&.title {
 				/* display only title in modal mode */ 
-				display: block;
+				// display: block;
 			}
 		}
 	}
@@ -386,15 +405,25 @@ body.modal {
 
 }
 
+body.modal-inline {
+	#content {
+		padding-bottom: 0;
+	}
+	.container {
+		padding-left: 0;
+		padding-right: 0;
+	}
+}
+
 
 /***********************************************************************************************
  * MISC
  *
  */
 
-body.id-3 #breadcrumbs ul li:not(:first-child):not(:last-child),
+body.id-3:not(.hasUrlSegments) #breadcrumbs ul li:not(:first-child):not(:last-child),
 body.id-23 #breadcrumbs ul li:not(:first-child):not(:last-child),
-body.id-8 #breadcrumbs ul li:not(:first-child):not(:last-child) {
+body.id-8:not(.hasUrlSegments) #breadcrumbs ul li:not(:first-child):not(:last-child) {
 	/* hide extraneous breadcrumbs when in admin root */
 	display: none; 
 }
@@ -449,8 +478,6 @@ body:not(.hasWireTabs) #headline .container {
 .fa-4x { font-size: 56px !important; }
 .fa-5x { font-size: 70px !important; }
 
-
-
 /***********************************************************************************************
  * MEDIA QUERIES
  *
@@ -501,10 +528,19 @@ body:not(.hasWireTabs) #headline .container {
 	 * Disregard column width when at mobile size
 	 *
 	 */
-	.Inputfield {
+	.Inputfield:not(.InputfieldSubmit):not(.InputfieldButton) {
 		clear: both !important;
 		width: 100% !important;
 		margin-left: 0 !important;
+		.InputfieldHeader,
+		.InputfieldContent {
+			margin-left: 0 !important;
+		}
+	}
+
+	// no need to adjust column height when Inputfields are collapsed
+	.Inputfield .maxColHeightSpacer {
+		display: none;
 	}
 	
 }

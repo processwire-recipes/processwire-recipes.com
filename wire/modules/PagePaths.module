@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Page Paths
@@ -7,11 +7,8 @@
  * make paths more queryable by selectors.
  *
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2014 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  * 
  *
  */
@@ -22,7 +19,7 @@ class PagePaths extends WireData implements Module {
 		return array(
 			'title' => 'Page Paths', 
 			'version' => 1, 
-			'summary' => "Enables page paths/urls to be queryable by selectors. Also offers potential for improved load performance. Builds an index at install (may take time on a large site).",
+			'summary' => "Enables page paths/urls to be queryable by selectors. Also offers potential for improved load performance. Builds an index at install (may take time on a large site). Currently supports only single languages sites.",
 			'singular' => true, 
 			'autoload' => true, 
 			);
@@ -35,6 +32,12 @@ class PagePaths extends WireData implements Module {
 	const dbTableName = 'pages_paths';
 
 	/**
+	 * @var Languages|false
+	 *
+	 */
+	protected $languages = null;
+
+	/**
 	 * Initialize the hooks
 	 *
 	 */
@@ -43,6 +46,45 @@ class PagePaths extends WireData implements Module {
 		$this->pages->addHook('renamed', $this, 'hookPageMoved'); 
 		$this->pages->addHook('added', $this, 'hookPageMoved'); 
 		$this->pages->addHook('deleted', $this, 'hookPageDeleted');
+	}
+	
+	public function ready() {
+		$page = $this->wire('page');
+		if($page->template == 'admin' && $page->name == 'module') {
+			$this->wire('modules')->addHookAfter('refresh', $this, 'hookModulesRefresh');
+		}
+	}
+
+	/**
+	 * Returns Languages object or false if not available
+	 *
+	 * @return Languages|null
+	 *
+	 */
+	public function getLanguages() {
+		if(!is_null($this->languages)) return $this->languages;
+		$languages = $this->wire('languages');
+		if(!$languages) return null;
+		if(!$this->wire('modules')->isInstalled('LanguageSupportPageNames')) {
+			$this->languages = false;
+		} else {
+			$this->languages = $this->wire('languages');
+		}
+		return $this->languages;
+	}
+
+	/**
+	 * Hook to ProcessModule::refresh
+	 * 
+	 * @param HookEvent $event
+	 * 
+	 */
+	public function hookModulesRefresh(HookEvent $event) {
+		if($this->getLanguages()) {
+			$this->wire('session')->warning(
+				$this->_('Please uninstall the Core > PagePaths module (it is not compatible with LanguageSupportPageNames)')
+			);
+		}
 	}
 
 	/**
@@ -63,27 +105,27 @@ class PagePaths extends WireData implements Module {
 		$page = $event->arguments[0];
 		$database = $this->wire('database');
 		$query = $database->prepare("DELETE FROM " . self::dbTableName . " WHERE pages_id=:pages_id"); 
-		$query->bindValue(":pages_id", $page->id, PDO::PARAM_INT);
+		$query->bindValue(":pages_id", $page->id, \PDO::PARAM_INT);
 		$query->execute();
 	}
 
 	/**
-	 * Given a page ID, return the page path or NULL if not found.
+	 * Given a page ID, return the page path, NULL if not found, or boolean false if cannot be determined.
 	 *
 	 * @param int $id
-	 * @return string|null
+	 * @return string|null|false
 	 *
 	 */
 	public function getPath($id) {
+		if($this->getLanguages()) return false; // we do not support multi-language yet for this module
 		$table = self::dbTableName;
-		$id = (int) $id; 
 		$database = $this->wire('database');
 		$query = $database->prepare("SELECT path FROM `$table` WHERE pages_id=:pages_id"); 
-		$query->bindValue(":pages_id", $id, PDO::PARAM_INT);
+		$query->bindValue(":pages_id", $id, \PDO::PARAM_INT);
 		$query->execute();
 		if(!$query->rowCount()) return null;
 		$path = $query->fetchColumn();
-		$path = strlen($path) ? "/$path/" : "/";
+		$path = strlen($path) ? $this->wire('sanitizer')->pagePathName("/$path/", Sanitizer::toUTF8) : "/";
 		return $path;
 	}
 
@@ -97,6 +139,7 @@ class PagePaths extends WireData implements Module {
 	public function getID($path) {
 		$table = self::dbTableName;
 		$database = $this->wire('database');
+		$path = $this->wire('sanitizer')->pagePathName($path, Sanitizer::toAscii);
 		$path = trim($path, '/');
 		$query = $database->prepare("SELECT pages_id FROM $table WHERE path=:path");
 		$query->bindValue(":path", $path); 
@@ -130,6 +173,7 @@ class PagePaths extends WireData implements Module {
 			$where = '';
 			foreach($value as $path) {
 				if($where) $where .= $selector->not ? " AND " : " OR ";
+				$path = $this->wire('sanitizer')->pagePathName($path, Sanitizer::toAscii);
 				$path = $this->wire('database')->escapeStr(trim($path, '/')); 
 				$where .= ($selector->not ? "NOT " : "") . "$alias.path{$selector->operator}'$path'";
 			}
@@ -144,7 +188,7 @@ class PagePaths extends WireData implements Module {
 				$error = "NOT mode isn't yet supported with path/url and '$selector->operator' operator";
 				throw new PageFinderSyntaxException($error);
 			}
-			$ft = new DatabaseQuerySelectFulltext($query);
+			$ft = $this->wire(new DatabaseQuerySelectFulltext($query));
 			$ft->match($alias, 'path', $selector->operator, trim($value, '/'));
 		}
 	}
@@ -164,6 +208,7 @@ class PagePaths extends WireData implements Module {
 		$table = self::dbTableName;
 		$id = (int) $id;
 		$database = $this->wire('database');
+		$path = $this->wire('sanitizer')->pagePathName($path, Sanitizer::toAscii);
 		$path = trim($path, '/');
 		$_path = $database->escapeStr($path);
 		$numUpdated = 1;
@@ -172,7 +217,7 @@ class PagePaths extends WireData implements Module {
 				"ON DUPLICATE KEY UPDATE pages_id=VALUES(pages_id), path=VALUES(path)"; 
 	
 		$query = $database->prepare($sql);
-		$query->bindValue(":id", $id, PDO::PARAM_INT);	
+		$query->bindValue(":id", $id, \PDO::PARAM_INT);	
 		$query->bindValue(":path", $_path); 
 		$query->execute();
 
@@ -184,10 +229,10 @@ class PagePaths extends WireData implements Module {
 					"GROUP BY pages.id ";
 		
 			$query = $database->prepare($sql);
-			$query->bindValue(":id", $id, PDO::PARAM_INT);
+			$query->bindValue(":id", $id, \PDO::PARAM_INT);
 			$query->execute();	
 			
-			while($row = $query->fetch(PDO::FETCH_NUM)) {
+			while($row = $query->fetch(\PDO::FETCH_NUM)) {
 				list($id, $name, $numChildren) = $row;
 				$numUpdated += $this->updatePagePath($id, "$path/$name", $numChildren > 0, $level+1);
 			}

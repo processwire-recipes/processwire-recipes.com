@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire File Fieldtype
@@ -9,11 +9,8 @@
  * /wire/core/Fieldtype.php
  * /wire/core/FieldtypeMulti.php
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -77,8 +74,8 @@ class FieldtypeFile extends FieldtypeMulti {
 	}
 
 	public function ___getCompatibleFieldtypes(Field $field) {
-		$fieldtypes = new Fieldtypes();
-		foreach($this->fuel('fieldtypes') as $fieldtype) {
+		$fieldtypes = $this->wire(new Fieldtypes());
+		foreach($this->wire('fieldtypes') as $fieldtype) {
 			if($fieldtype instanceof FieldtypeFile) $fieldtypes->add($fieldtype); 
 		}
 		return $fieldtypes; 
@@ -201,7 +198,7 @@ class FieldtypeFile extends FieldtypeMulti {
 	}
 
 	public function getBlankValue(Page $page, Field $field) {
-		$pagefiles = new Pagefiles($page);
+		$pagefiles = $this->wire(new Pagefiles($page));
 		$pagefiles->setField($field); 
 		$pagefiles->setTrackChanges(true); 
 		return $pagefiles; 
@@ -218,7 +215,7 @@ class FieldtypeFile extends FieldtypeMulti {
 	 *
 	 */
 	protected function getBlankPagefile(Pagefiles $pagefiles, $filename) {
-		return new Pagefile($pagefiles, $filename); 
+		return $this->wire(new Pagefile($pagefiles, $filename)); 
 	}
 
 	public function sanitizeValue(Page $page, Field $field, $value) {
@@ -267,8 +264,11 @@ class FieldtypeFile extends FieldtypeMulti {
 					$textformatter->formatValue($page, $field, $tags); 
 					$v->tags = $tags; 
 				}
-				$v->formatted = true; 
 			}
+		}
+		
+		foreach($value as $v) {
+			$v->formatted = true;
 		}
 
 		/*
@@ -337,7 +337,7 @@ class FieldtypeFile extends FieldtypeMulti {
 
 		if(in_array($operator, array("*=", "~=", "%=", "^=", "$="))) {
 			// fulltext match filename or description
-			$ft = new DatabaseQuerySelectFulltext($query); 
+			$ft = $this->wire(new DatabaseQuerySelectFulltext($query)); 
 			$ft->match($table, $subfield, $operator, $value); 
 
 		} else {
@@ -357,8 +357,9 @@ class FieldtypeFile extends FieldtypeMulti {
 		$database = $this->wire('database');
 		$schema = parent::getDatabaseSchema($field);
 		$table = $database->escapeTable($field->table); 
+		$maxLen = $database->getMaxIndexLength();
 
-		$schema['data'] = 'varchar(255) NOT NULL';
+		$schema['data'] = "varchar($maxLen) NOT NULL";
 		$schema['description'] = "text NOT NULL";
 		$schema['modified'] = "datetime"; 
 		$schema['created'] = "datetime"; 
@@ -382,7 +383,7 @@ class FieldtypeFile extends FieldtypeMulti {
 				} else {
 					$addDates = true; 
 				}
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				// intentionally blank
 			}
 
@@ -400,7 +401,7 @@ class FieldtypeFile extends FieldtypeMulti {
 				$query->execute();
 				$this->message("Added created/modified to DB schema for '{$field->name}'", Notice::log); 
 				
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				
 				$query = $database->prepare("SHOW COLUMNS FROM `$table` WHERE Field='modified'"); 
 				$query->execute();
@@ -418,7 +419,7 @@ class FieldtypeFile extends FieldtypeMulti {
 		}
 
 		$tagsAction = null; // null=no change; 1=add tags, 0=remove tags
-		$schemaTags = 'varchar(255) NOT NULL'; 
+		$schemaTags = 'varchar(250) NOT NULL'; 
 		$schemaTagsIndex = 'FULLTEXT KEY tags (tags)'; 
 
 		if($field->useTags && !($field->fileSchema & self::fileSchemaTags)) $tagsAction = 'add';
@@ -431,7 +432,7 @@ class FieldtypeFile extends FieldtypeMulti {
 				$query->execute();
 				$numRows = (int) $query->rowCount();
 				$query->closeCursor();
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				// probably in a clone, we can ignore and skip over any further changes
 				$numRows = 1; 
 			}
@@ -442,7 +443,7 @@ class FieldtypeFile extends FieldtypeMulti {
 				$field->fileSchema = $field->fileSchema | self::fileSchemaTags; 
 				$field->save();
 				$this->message("Added tags to DB schema for '{$field->name}'", Notice::log); 
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$this->error("Error adding tags to '{$field->name}' schema", Notice::log); 
 			}
 
@@ -454,7 +455,7 @@ class FieldtypeFile extends FieldtypeMulti {
 				$field->fileSchema = $field->fileSchema & ~self::fileSchemaTags;
 				$field->save();
 				$this->message("Dropped tags from DB schema for '{$field->name}'", Notice::log); 
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$this->error("Error dropping tags from '{$field->name}' schema", Notice::log); 
 			}
 		}
@@ -470,7 +471,7 @@ class FieldtypeFile extends FieldtypeMulti {
 
 	public function ___deletePageField(Page $page, Field $field) {
 
-		if($this->config->debug) $this->message("deletePageField, Page:$page, Field:$field"); 
+		// if($this->config->debug) $this->message("deletePageField, Page:$page, Field:$field"); 
 
 		if($pagefiles = $page->get($field->name)) {
 
@@ -480,11 +481,11 @@ class FieldtypeFile extends FieldtypeMulti {
 			} else if($pagefiles instanceof Pagefile) {
 				$pagefiles->unlink();
 
-			} else if($this->config->debug) {
+			} else if($page->hasField($field) && $this->config->debug) {
 				$this->error("Not Pagefiles or Pagefile"); 
 			}
 
-		} else if($this->config->debug) {
+		} else if($page->hasField($field) && $this->config->debug) {
 			$this->error("Unable to retreive $page.{$field->name}"); 			
 		}
 
@@ -623,7 +624,7 @@ class FieldtypeFile extends FieldtypeMulti {
 		
 		foreach($this->wire('modules') as $fm) {
 			if(strpos($fm->className(), 'Inputfield') !== 0) continue;
-			if("$fm" == $baseClass || is_subclass_of("$fm", $baseClass))
+			if("$fm" == $baseClass || is_subclass_of($fm->className(true), __NAMESPACE__ . "\\$baseClass"))
 				$f->addOption("$fm", str_replace("Inputfield", '', "$fm"));
 		}
 		

@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * Class ModuleConfig
@@ -8,9 +8,12 @@
  * Descending class name should follow the format: [ModuleName]Config and file [ModuleName]Config.php
  * located in the same directory as the module it is configuring. 
  * 
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
+ * 
  */
 
-abstract class ModuleConfig extends WireData {
+class ModuleConfig extends WireData {
 
 	/**
 	 * Used when inputfields are defined by array
@@ -81,7 +84,7 @@ abstract class ModuleConfig extends WireData {
 		foreach($this->getDefaults() as $key => $value) {
 			$this->set($key, $value);
 		}
-		$inputfields = new InputfieldWrapper();
+		$inputfields = $this->wire(new InputfieldWrapper());
 		if(count($this->inputfieldsArray)) {
 			$inputfields->add($this->inputfieldsArray); 
 		}
@@ -95,7 +98,7 @@ abstract class ModuleConfig extends WireData {
 	 * @return this
 	 * 
 	 */
-	protected function add(array $a) {
+	public function add(array $a) {
 		if(count($this->inputfieldsArray)) { 
 			$this->inputfieldsArray = array_merge($this->inputfieldsArray, $a); 
 		} else {

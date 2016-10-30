@@ -31,7 +31,6 @@
 
 	.Inputfields {
 
-
 		.InputfieldColumnWidthFirst,
 		.InputfieldColumnWidth + .InputfieldSubmit {
 			/* first Inputfield with a percent width... */
@@ -74,9 +73,9 @@
 }
 
 /**
-	 * FieldsetTab Descriptions
-	 *
-	 */
+* FieldsetTab Descriptions
+*
+*/
 
 .InputfieldFieldsetTabOpen > .Inputfields > h2 {
 
@@ -112,8 +111,15 @@ textarea {
 	border-style: solid;
 	border-width: 1px;
 	border-color: darken($border-color, 12%) darken($border-color, 4%) darken($border-color, 4%) darken($border-color, 4%);
-	padding: 0.4em;
+	padding: 0.45em 0.5em;
 	background: $subtle-bg;
+	-webkit-appearance:none;  /* Remove default shadow */
+}
+
+textarea {
+	line-height: 1.4em; 
+	padding: 0.6em;
+	display: block;
 }
 
 textarea,
@@ -159,13 +165,23 @@ table {
 	/**
 	 * file and image input field containers
 	 */
-	
-	.InputfieldImageGrid .InputfieldFileItem {
-		padding: 0.3em !important;
-		margin: 0 0.2em 0 0 !important;
-		border: 1px solid $border-color !important;
+	.InputfieldImageGrid {
+		
+		.InputfieldFileList{
+			margin-top: 1em;
+		}
+
+		.InputfieldFileItem {
+			background: $white !important;
+			padding: 0.4em !important;
+			margin: 0 0.6em 0.6em 0 !important;
+			//border: 1px solid $border-color !important;
+			box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+		}
+
 		.InputfieldFileData {
 			border: none !important;
+			margin-bottom: 0 !important;
 		}
 		a.InputfieldFileLink {
 			display: block !important;
@@ -325,7 +341,6 @@ table {
 			border: none;
 			background: $item-header-bg; 
 			color: $item-header-color;
-			padding: 0.25em 0.25em 0.25em 1.7em;
 
 			a {
 				color: $item-header-color; 
@@ -338,9 +353,6 @@ table {
 				border: none; 
 			}
 
-			.ui-icon {
-				margin-top: 3px; 
-			}
 		}
 
 		.InputfieldRepeaterItem > .InputfieldContent {
@@ -364,10 +376,6 @@ table {
 		.InputfieldRepeaterItem > .InputfieldHeader .toggle-icon {
 			color: $item-header-color;
 		}
-
-		.InputfieldRepeaterItem > .InputfieldHeader .InputfieldRepeaterTrash {
-			right: 1.8em; 
-		}
 	}
 
 	/**
@@ -381,17 +389,20 @@ table {
 
 	.InputfieldFileList > li {
 		margin-top: 0;
+		margin-bottom: 0.5em !important;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.2);
 	}
 	.InputfieldFileList .InputfieldFileItem {
 		border: none;
 	}
 
 	.InputfieldFileList .InputfieldFileItem .ui-widget-content, .InputfieldFileData {
-		border-width: 0 1px 1px 1px;
-		border-style: solid;
-		border-color: darken($item-border-color, 4%);
+		//border-width: 0 1px 1px 1px;
+		//border-style: solid;
+		//border-color: darken($item-border-color, 4%);
 		background: $item-bg;
-		border-top: none;
+		border: none;
+		//margin-bottom: 1em;
 	}
 
 	.InputfieldItemList .InputfieldItemHeader {
@@ -399,8 +410,7 @@ table {
 		border: none;
 		background: $item-header-bg; 
 		color: $item-header-color; 
-		padding-left: 0.25em; 
-		padding-right: 0.5em; 
+		padding: 0.5em;
 		cursor: move; 
 		font-weight: $normal-weight;
 
@@ -419,8 +429,8 @@ table {
 			}
 		}
 
-		.ui-icon {
-			margin-top: 3px; 
+		&.InputfieldFileInfo > i.fa{
+			left: 0;
 		}
 	}
 
@@ -430,7 +440,8 @@ table {
 		color: $ui-state-default-color; 
 	}
 
-	.InputfieldItemList .InputfieldItemHeader.ui-state-error {
+	.InputfieldItemList .InputfieldItemHeader.ui-state-error,
+	.InputfieldItemList .InputfieldItemList .InputfieldItemHeader.ui-state-error {
 		/* deleted item state */
 		text-decoration: line-through; 
 		background: $error-bg; 
@@ -447,12 +458,6 @@ table {
 		background: $nested-fields-bg;
 	
 	}
-	.InputfieldItemList:not(.InputfieldStateCollapsed) > .InputfieldHeader,
-	.InputfieldFieldset:not(.InputfieldStateCollapsed):not(.InputfieldRepeaterItem) > .InputfieldHeader,
-	.InputfieldFieldsetOpen:not(.InputfieldStateCollapsed) > .InputfieldHeader {
-		
-	}
-
 	.InputfieldItemList .InputfieldItemList:not(.InputfieldStateCollapsed) > .InputfieldHeader,
 	.InputfieldItemList .InputfieldItemList > .InputfieldHeader + .InputfieldContent {
 		/* unless the item is already a nested item list, then we are a little mroe subtle with it */ 
@@ -504,18 +509,6 @@ table {
 	padding: 0.75em 0.25em 0.25em 1em;
 	font-weight: $bold-weight; 
 }
-
-
-/**
- * Styles for item listing inputfields
- *
-
-.InputfieldItemList .InputfieldContent .InputfieldHeader {
-	font-weight: bold;
-	padding: 5px 10px; 
-	text-shadow: none; 
-}
- */
 
 .InputfieldStateRequired > .InputfieldHeader:first-child:after {
 	/* Add asterisk to indicate field is required */
@@ -590,6 +583,19 @@ table {
 	margin-bottom: 1em; 
 }
 
+.Inputfields .Inputfield:not(.InputfieldStateCollapsed) > .InputfieldHeaderHidden > span {
+	/* hide header for inputfield */
+	display: none;
+}
+
+#content .InputfieldHeader + .InputfieldContent.langTabsContainer {
+	padding-bottom: 0.25em;
+}
+
+#content .InputfieldHeader + .InputfieldContent.langTabsContainer p.notes {
+	margin: 0 0 1em 0;
+}
+
 /****************************************************************************
  * Render Value Mode 
  *
@@ -621,4 +627,36 @@ table {
 ul.Inputfields #wrap_login_name,
 ul.Inputfields #wrap_login_pass {
 	width: auto !important;
+}
+
+
+/****************************************************************************
+ * The following is only for AdminThemeReno support of PW 2.5.x
+ * 
+ * This can eventually be dropped
+ * 
+ */
+body:not(.AdminThemeReno) .Inputfields {
+	
+	.InputfieldRepeater > .InputfieldContent .InputfieldRepeaterItem > .InputfieldHeader {
+		padding: 0.25em 0.25em 0.25em 1.7em;
+
+		.InputfieldRepeaterTrash {
+			right: 1.8em;
+		}
+
+		.ui-icon {
+			margin-top: 3px;
+		}
+	}
+
+	.InputfieldItemList .InputfieldItemHeader {
+		/* file or repeater item header */
+		padding-left: 0.25em;
+		padding-right: 0.5em;
+
+		.ui-icon {
+			margin-top: 3px;
+		}
+	}
 }

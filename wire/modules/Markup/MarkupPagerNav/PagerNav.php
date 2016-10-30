@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire PagerNav support classes for MarkupPagerNav module
@@ -6,12 +6,9 @@
  * Provides capability for determining pagination information
  *
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -63,7 +60,7 @@ class PagerNavItem {
  * }
  *
  */
-class PagerNav implements IteratorAggregate {
+class PagerNav implements \IteratorAggregate {
 
 	protected $totalPages = 0;
 	protected $currentPage = 0;
@@ -86,6 +83,7 @@ class PagerNav implements IteratorAggregate {
 	 * @param int $totalItems Total number of items in the list to be paginated. 
 	 * @param int $itemsPerPage The number of items you want to appear per page. 
 	 * @param int $currentPage The current page number (NOTE: 0 based, not 1 based)
+	 * @throws WireException if given itemsPerPage of 0
 	 *
 	 */
 	public function __construct($totalItems, $itemsPerPage, $currentPage) {
@@ -245,7 +243,7 @@ class PagerNav implements IteratorAggregate {
 		return $this->pager; 	
 	}
 
-	public function getIterator() { return new ArrayObject($this->getPager()); }
+	public function getIterator() { return new \ArrayObject($this->getPager()); }
 	public function getFirstItem() { return $this->firstItem; }
 	public function getItemsPerPage() { return $this->itemsPerPage; }
 	public function getCurrentPage() { return $this->currentPage; }

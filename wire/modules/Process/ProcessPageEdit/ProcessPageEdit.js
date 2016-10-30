@@ -22,7 +22,37 @@ function initPageEditForm() {
 		$("#ProcessPageEdit").submit();
 	}); 
 
-	// prevent Firefox from sending two requests for same click
-	$("#AddPageBtn").click(function() { return false; }); 
+	$(document).on('click', '#AddPageBtn', function() {
+		// prevent Firefox from sending two requests for same click
+		return false;
+	}).on('click', 'button[type=submit]', function(e) {
+		// alert user when they try to save and an upload is in progress
+		if($('body').hasClass('pw-uploading')) {
+			return confirm($('#ProcessPageEdit').attr('data-uploading')); 
+		}
+	});
+	
+	if(typeof InputfieldSubmitDropdown != "undefined") {
+		var $dropdownTemplate = $("ul.pw-button-dropdown:not(.pw-button-dropdown-init)");
+		$("button[type=submit]").each(function() {
+			var $button = $(this);
+			var name = $button.attr('name');
+			if(name.indexOf('submit') == -1) return;
+			if(name.indexOf('_save') == -1 && name.indexOf('_publish') == -1) return;
+			InputfieldSubmitDropdown.init($button, $dropdownTemplate);
+		});
+	}
 
+	var $viewLink = $("#_ProcessPageEditView");
+	var $viewMenu = $("#_ProcessPageEditViewDropdown");
+	var color = $viewLink.css('color');
+	
+	$("#_ProcessPageEditViewDropdownToggle").css('color', color);
+	
+	$viewLink.click(function() {
+		var action = $viewLink.attr('data-action');
+		if(action == 'this' || action == 'new' || !action.length) return true; 
+		$viewMenu.find(".page-view-action-" + action + " > a").click();
+		return false;
+	}); 
 }

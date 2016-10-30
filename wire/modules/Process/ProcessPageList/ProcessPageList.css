@@ -82,48 +82,17 @@
 }
 .PageList i.icon {
 	display: inline-block;
+	/*
 	width: 18px;
+	*/
 }
 .PageList .PageListStatusIcon {
 	margin-left: 4px; 
 }
-
-
-
-/**
- * An animated GIF loading image that appears during ajax calls
- *
- */
-.PageListLoading {
-	display: inline; 
-	padding: 0 9px 9px 0; 
-	background: url(images/loading.gif) top left no-repeat; 
-	position: relative;
-	top: 3px; 
+.PageList i.fa + span {
+	margin-left: 2px; 
 }
 
-/*
-.PageList .PageListStatusLocked a.PageListPage,
-.PageList .PageListStatusLocked a.PageListPage:hover {
-	padding-right: 10px;
-}
-*/
-
-.PageList .PageListAccessOff a.PageListPage,
-.PageList .PageListAccessOff a.PageListPage:hover {
-	/*
-	padding-right: 10px;
-	background: url(images/lock.gif) center right no-repeat; 
-	*/
-}
-
-.PageList .PageListAccessOn a.PageListPage,
-.PageList .PageListAccessOn a.PageListPage:hover {
-	/*
-	padding-right: 13px;
-	background: url(images/unlock.png) center right no-repeat; 
-	*/
-}
 
 
 .PageList .PageListID7 a.PageListPage,
@@ -135,10 +104,7 @@
 	background: none; 
 }
 
-
-
-.PageList .PageListStatusSystem a.PageListPage { }
-
+.PageList .PageListStatusUnpublished a.PageListPage > span, 
 .PageList .PageListStatusUnpublished a.PageListPage {
 	text-decoration: line-through; 
 }
@@ -197,7 +163,7 @@
 	display: inline !important;
 	border-left: 1px solid #bbb;
 	padding: 0 1px;
-	text-transform: lowercase;
+	/*text-transform: lowercase;*/
 }
 
 /**
@@ -212,7 +178,13 @@
  * When an item is open, this style ensures that the PageListActions become visible
  *
  */
-.PageList .PageListItemOpen > ul.PageListActions,
+.PageListRoot .PageList .PageListItemOpen > ul.PageListActions {
+	display: inline;
+}
+
+.PageListUseHoverActions .PageList .PageListItemOpen > ul.PageListActions {
+	display: none;
+}
 .PageListSelectHeader .PageListActions {
 	display: inline !important;
 }
@@ -225,8 +197,9 @@
 	margin: 0 !important; 
 }
 
-.PageListActionTrash {
-	float: right;
+#PageListContainer.PageListContainerPage .PageListActionTrash {
+	/* trash not applicable when page list doesn't start from root */
+	display: none;
 }
 
 /********************************************************************************************************
@@ -324,6 +297,15 @@
 	height: 1em; 
 	width: auto; 
 	border-left: 2px solid #999; 
+}
+
+.PageListActionExtras i.fa {
+	margin-left: 3px;
+	margin-right: 2px;
+}
+.PageListActionExtras i.fa-flip-horizontal {
+	margin-left: 2px;
+	margin-right: 3px;
 }
 
 

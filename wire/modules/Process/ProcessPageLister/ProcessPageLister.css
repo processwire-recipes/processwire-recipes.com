@@ -1,145 +1,130 @@
-
 #ProcessLister {
-	margin-top: -2px; 
-}
+  margin-top: -2px; }
 
 #ProcessListerResultsTab {
-	padding-top: 0.5em; 
-}
+  padding-top: 0.5em; }
 
-.datetime {
-	white-space: nowrap; 
-}
+#ProcessListerResults #ProcessListerTable > table {
+  clear: both;
+  position: relative; }
+  #ProcessListerResults #ProcessListerTable > table td table {
+    width: 100%; }
+  #ProcessListerResults #ProcessListerTable > table > thead th {
+    font-size: 0.857142857142857em; }
+    #ProcessListerResults #ProcessListerTable > table > thead th i {
+      font-size: 14px; }
+  #ProcessListerResults #ProcessListerTable > table > thead th strong {
+    white-space: nowrap; }
+  #ProcessListerResults #ProcessListerTable > table > thead th b,
+  #ProcessListerResults #ProcessListerTable > table > thead .th b {
+    display: none; }
+  #ProcessListerResults #ProcessListerTable > table > thead th:first-child {
+    padding-left: 0;
+    /* reno */ }
+  #ProcessListerResults #ProcessListerTable > table > tbody > tr > td {
+    font-size: 0.928571428571429em; }
+    #ProcessListerResults #ProcessListerTable > table > tbody > tr > td:first-child, #ProcessListerResults #ProcessListerTable > table > tbody > tr > td:first-child > a {
+      padding-left: 0;
+      /* reno */ }
+    #ProcessListerResults #ProcessListerTable > table > tbody > tr > td ul.MarkupFieldtype {
+      margin: 0;
+      padding-left: 0; }
+      #ProcessListerResults #ProcessListerTable > table > tbody > tr > td ul.MarkupFieldtype > li {
+        margin: 0;
+        padding-left: 0; }
+      #ProcessListerResults #ProcessListerTable > table > tbody > tr > td ul.MarkupFieldtype > li + li {
+        border-top: 1px solid #eee; }
+    #ProcessListerResults #ProcessListerTable > table > tbody > tr > td > *:first-child, #ProcessListerResults #ProcessListerTable > table > tbody > tr > td .col_preview > *:first-child {
+      margin-top: 0; }
+    #ProcessListerResults #ProcessListerTable > table > tbody > tr > td > *:last-child, #ProcessListerResults #ProcessListerTable > table > tbody > tr > td .col_preview > *:last-child {
+      margin-bottom: 0; }
+#ProcessListerResults .PageListerActions {
+  display: none;
+  line-height: 1.3em;
+  text-transform: lowercase; }
+  #ProcessListerResults .PageListerActions a.PageExtra {
+    margin-bottom: 3px; }
+  #ProcessListerResults .PageListerActions a.PageExtras i {
+    margin-left: 3px;
+    margin-right: 2px; }
+  #ProcessListerResults .PageListerActions a.PageExtras.open i {
+    margin-left: 2px;
+    margin-right: 3px; }
+#ProcessListerResults .row_message {
+  display: inline; }
+#ProcessListerResults .PageListStatusUnpublished {
+  text-decoration: line-through;
+  opacity: 0.5; }
+#ProcessListerResults .PageListStatusHidden {
+  opacity: 0.5; }
+#ProcessListerResults .MarkupPagerNav {
+  float: right; }
+#ProcessListerResults .nobr {
+  white-space: nowrap; }
+#ProcessListerResults table + .MarkupPagerNav {
+  margin: 0; }
+#ProcessListerResults .datetime {
+  white-space: nowrap; }
+#ProcessListerResults td:not(.col_editing) .InputfieldHasFileList .InputfieldHeader {
+  display: none; }
+#ProcessListerResults td:not(.col_editing) .InputfieldHasFileList .InputfieldContent {
+  padding: 5px;
+  border: none;
+  margin-top: 5px;
+  margin-bottom: 5px; }
+@media only screen and (max-width: 767px) {
+  #ProcessListerResults table.ProcessListerTable + .MarkupPagerNav {
+    margin-bottom: 1em; }
+  #ProcessListerResults .MarkupPagerNav {
+    float: none; } }
 
-#ProcessListerResults p {
-	margin: 1em 0;
-}
+.AdminDataTable p {
+  margin: 1em 0; }
 
-#ProcessListerResults table.AdminDataTable {
-	clear: both; 
-}
-
-#ProcessListerResults thead th b {
-	display: none; 
-}
-
-#ProcessListerResults td {
-	/*position: relative; */
-	font-size: 0.928571428571429em;
-}
-
-#ProcessListerResults tr > th:first-child,
-#ProcessListerResults tr > td:first-child,
-#ProcessListerResults tr > td:first-child > a {
-	padding-left: 0; /* reno */
-}
-
-#ProcessListerResults th {
-	font-size: 0.857142857142857em; 
-}
-/*
-#ProcessListerResults a.PageEdit {
-	margin-right: 1em; 
-}
-
-#ProcessListerResults a.PageView {
-	display: none; 
-}
-*/
-#ProcessListerResults .actions {
-	display: none;
-	line-height: 1.3em;
-}
-/*
-#ProcessListerResults tr:hover {
-	background: #ffffdd; 
-}
-*/
-/*
-#ProcessListerResults tr:hover a.PageView,
-#ProcessListerResults tr:hover a.PageEdit {
-	font-size: 14px; 
-	display: inline;
-}
-*/
 #ProcessListerResults + a button {
-	float: left; 
-	margin-right: 0;
-	margin-top: 0;
-}
-
-.PageListStatusUnpublished {
-	text-decoration: line-through; 
-	opacity: 0.5; 
-}
-
-.PageListStatusHidden {
-	opacity: 0.5; 
-}
+  float: left;
+  margin-right: 0;
+  margin-top: 0; }
 
 #ProcessListerSpinner {
-	margin-left: 0.5em; 
-	font-size: 20px; 
-	position: relative;
-}
-#ProcessListerSpinner i {
-	position: absolute;
-	top: -15px;
-	left: 0; 
-}
-
+  margin-left: 0.5em;
+  font-size: 20px;
+  position: relative; }
+  #ProcessListerSpinner i {
+    position: absolute;
+    top: -15px;
+    left: 0; }
 
 #content .lister_headline {
-	float: left; 
-}
+  float: left; }
+  @media only screen and (max-width: 767px) {
+    #content .lister_headline {
+      float: none;
+      clear: both; } }
 
 #lister_open_cnt {
-	display: none; 
-}
-
-#ProcessListerResults .MarkupPagerNav {
-	float: right; 
-}
-
-#ProcessListerResults table + .MarkupPagerNav {
-	margin: 0;
-}
-
+  display: none; }
 
 #filters_spinner {
-	float: right; 
-	margin-top: 4px; 
-}
+  float: right;
+  margin-top: 4px; }
 
 #ProcessListerRefreshTab {
-	float: right; 
-}
+  float: right; }
 
 p.version {
-	clear: both; 
-	padding-top: 1em; 
-}
+  clear: both;
+  padding-top: 1em; }
 
+#ProcessListerScript {
+  display: none; }
 
-@media only screen and (max-width: 767px) {
+#table_bookmarks {
+  margin-top: 0.5em; }
 
-	/*
-	#ProcessListerResults table.AdminDataTable th:not(:first-child),
-	#ProcessListerResults table.AdminDataTable td:not(:first-child) {
-		display: none; 
-	}
-	*/
+.AdminThemeReno a.lister-lightbox {
+  padding: 0 !important; }
+.AdminThemeReno a.lister-lightbox img {
+  margin: 0 !important; }
 
-	#content .lister_headline {
-		float: none;
-		clear: both; 
-	}
-	#content .MarkupPagerNav {
-		float: none; 
-	}
-	#ProcessListerResults table + .MarkupPagerNav {
-		margin-bottom: 1em;
-	}
-}
-
-
+/*# sourceMappingURL=ProcessPageLister.css.map */

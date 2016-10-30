@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire CacheFile
@@ -8,16 +8,15 @@
  * Each cache file creates it's own directory based on the '$id' given.
  * The dir is created so that secondary cache files can be created too, 
  * and these are automatically removed when the remove() method is called.
- *
- * ProcessWire 2.x 
- * Copyright (C) 2011 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
  * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
+ *
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
-class CacheFile {
+class CacheFile extends Wire {
 
 	const cacheFileExtension = ".cache";
 	const globalExpireFilename = "lastgood";
@@ -50,18 +49,17 @@ class CacheFile {
 	 */ 
 	public function __construct($path, $id, $cacheTimeSeconds) {
 
+		$this->useFuel(false);
 		$path = rtrim($path, '/') . '/';
 		$this->globalExpireFile = $path . self::globalExpireFilename; 
 		$this->path = $id ? $path . $id . '/' : $path;
 
 		if(!is_dir($path)) {
-			if(!@mkdir($path)) throw new WireException("Unable to create path: $path"); 
-			if($this->chmodDir) chmod($path, octdec($this->chmodDir));
+			if(!$this->wire('files')->mkdir($path, true)) throw new WireException("Unable to create path: $path"); 
 		}
 
 		if(!is_dir($this->path)) {
-			if(!@mkdir($this->path)) throw new WireException("Unable to create path: {$this->path}"); 
-			if($this->chmodDir) chmod($this->path, octdec($this->chmodDir));
+			if(!$this->wire('files')->mkdir($this->path)) throw new WireException("Unable to create path: {$this->path}"); 
 		}
 
 		if(is_file($this->globalExpireFile)) {
@@ -76,6 +74,8 @@ class CacheFile {
 	 * An extra part to be appended to the filename
 	 *
 	 * When a call to remove the cache is included, then all 'secondary' versions of it will be included too
+	 * 
+	 * @param string|int $id
 	 *
 	 */
 	public function setSecondaryID($id) {
@@ -91,6 +91,8 @@ class CacheFile {
 	 *
 	 * Filename takes this form: /path/primaryID/primaryID.cache
 	 * Or /path/primaryID/secondaryID.cache
+	 * 
+	 * @return string
 	 *
 	 */
 	protected function buildFilename() {
@@ -104,6 +106,8 @@ class CacheFile {
 	/**
 	 * Does the cache file exist?
 	 *
+	 * @return bool
+	 * 
 	 */
 	public function exists() {
 		if(!$this->secondaryID) return is_dir($this->path); 
@@ -113,6 +117,8 @@ class CacheFile {
 
 	/**
 	 * Get the contents of the cache based on the primary or secondary ID
+	 * 
+	 * @return string
 	 *
 	 */
 	public function get() {
@@ -129,6 +135,9 @@ class CacheFile {
 
 	/**
 	 * Is the given cache filename expired?
+	 * 
+	 * @param string $filename
+	 * @return bool
 	 *
 	 */
 	protected function isCacheFileExpired($filename) {
@@ -142,6 +151,9 @@ class CacheFile {
 
 	/**
 	 * Is the given filename a cache file?
+	 * 
+	 * @param string $filename
+	 * @return bool
 	 *
 	 */
 	static protected function isCacheFile($filename) {
@@ -152,6 +164,9 @@ class CacheFile {
 
 	/**
 	 * Saves $data to the cache
+	 * 
+	 * @param string $data
+	 * @return bool
 	 *
 	 */
 	public function save($data) {
@@ -159,24 +174,27 @@ class CacheFile {
 
 		if(!is_file($filename)) {
 			$dirname = dirname($filename);
-			$files = glob("$dirname/*.*"); 
-			$numFiles = count($files); 
-			if($numFiles >= self::maxCacheFiles) {
-				// if the cache file doesn't already exist, and there are too many files here
-				// then abort the cache save for security (we don't want to fill up the disk)
-				// also go through and remove any expired files while we are here, to avoid
-				// this limit interrupting more cache saves. 
-				$o = '';
-				foreach($files as $file) {
-					if(self::isCacheFile($file) && $this->isCacheFileExpired($file)) 
-						$this->removeFilename($file);
+			if(is_dir($dirname)) {
+				$files = glob("$dirname/*.*");
+				$numFiles = count($files);
+				if($numFiles >= self::maxCacheFiles) {
+					// if the cache file doesn't already exist, and there are too many files here
+					// then abort the cache save for security (we don't want to fill up the disk)
+					// also go through and remove any expired files while we are here, to avoid
+					// this limit interrupting more cache saves. 
+					foreach($files as $file) {
+						if(self::isCacheFile($file) && $this->isCacheFileExpired($file))
+							$this->removeFilename($file);
+					}
+					return false;
 				}
-				return false;
+			} else {
+				$this->wire('files')->mkdir("$dirname/", true);
 			}
 		}
 
 		$result = file_put_contents($filename, $data); 
-		if($this->chmodFile) chmod($filename, octdec($this->chmodFile));
+		$this->wire('files')->chmod($filename); 
 		return $result;
 	}
 
@@ -188,7 +206,7 @@ class CacheFile {
 	 */
 	public function remove() {
 
-		$dir = new DirectoryIterator($this->path); 
+		$dir = new \DirectoryIterator($this->path); 
 		foreach($dir as $file) {
 			if($file->isDir() || $file->isDot()) continue; 
 			//if(strpos($file->getFilename(), self::cacheFileExtension)) @unlink($file->getPathname()); 
@@ -200,6 +218,8 @@ class CacheFile {
 
 	/**
 	 * Removes just the given file, as opposed to remove() which removes the entire cache for primaryID
+	 * 
+	 * @param string $filename
 	 *
 	 */
 	protected function removeFilename($filename) {
@@ -217,7 +237,7 @@ class CacheFile {
 	 */
 	static public function removeAll($path, $rmdir = false) {
 
-		$dir = new DirectoryIterator($path); 
+		$dir = new \DirectoryIterator($path); 
 		$numRemoved = 0;
 	
 		foreach($dir as $file) {
@@ -248,11 +268,14 @@ class CacheFile {
 	public function expireAll() {
 		$note = "The modification time of this file represents the time of the last usable cache file. " . 
 			"Cache files older than this file are considered expired. " . date('m/d/y H:i:s');
-		file_put_contents($this->globalExpireFile, $note, LOCK_EX); 
+		@file_put_contents($this->globalExpireFile, $note, LOCK_EX); 
 	}
 
 	/**
 	 * Set the octal mode for files created by CacheFile
+	 * 
+	 * @param string $mode
+	 * @deprecated No longer used
 	 *
 	 */
 	public function setChmodFile($mode) {
@@ -261,6 +284,9 @@ class CacheFile {
 
 	/**
 	 * Set the octal mode for dirs created by CacheFile
+	 * 
+	 * @param string $mode
+	 * @deprecated No longer used
 	 *
 	 */
 	public function setChmodDir($mode) {

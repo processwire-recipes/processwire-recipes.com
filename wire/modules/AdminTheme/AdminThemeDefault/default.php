@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * default.php
@@ -15,15 +15,18 @@ if(!defined("PROCESSWIRE")) die();
 if(!isset($content)) $content = '';
 	
 $searchForm = $user->hasPermission('page-edit') ? $modules->get('ProcessPageSearch')->renderSearchForm() : '';
-$version = $adminTheme->version . 'a';
+$version = $adminTheme->version . 'h';
 
 $config->styles->prepend($config->urls->adminTemplates . "styles/" . ($adminTheme->colors ? "main-$adminTheme->colors" : "main-classic") . ".css?v=$version"); 
 $config->styles->append($config->urls->root . "wire/templates-admin/styles/font-awesome/css/font-awesome.min.css?v=$version"); 
-$config->scripts->append($config->urls->root . "wire/templates-admin/scripts/inputfields.js?v=$version"); 
-$config->scripts->append($config->urls->adminTemplates . "scripts/main.js?v=$version");
+	
+$ext = $config->debug ? "js" : "min.js";
+$config->scripts->append($config->urls->root . "wire/templates-admin/scripts/inputfields.$ext?v=$version");
+$config->scripts->append($config->urls->root . "wire/templates-admin/scripts/main.$ext?v=$version"); 
+$config->scripts->append($config->urls->adminTemplates . "scripts/main.$ext?v=$version");
 	
 require_once(dirname(__FILE__) . "/AdminThemeDefaultHelpers.php");
-$helpers = new AdminThemeDefaultHelpers();
+$helpers = $this->wire(new AdminThemeDefaultHelpers());
 $extras = $adminTheme->getExtraMarkup();
 
 ?><!DOCTYPE html>
@@ -32,6 +35,7 @@ $extras = $adminTheme->getExtraMarkup();
 <head>
 	<meta http-equiv="content-type" content="text/html; charset=utf-8" />
 	<meta name="robots" content="noindex, nofollow" />
+	<meta name="google" content="notranslate" />
 	<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
@@ -107,13 +111,13 @@ $extras = $adminTheme->getExtraMarkup();
 				<?php endif; ?>
 				<a class='action' href='<?php echo $config->urls->admin; ?>login/logout/'><?php echo $helpers->_('Logout'); ?></a>
 			</span>
+			ProcessWire <?php echo $config->versionName . ' <!--v' . $config->systemVersion; ?>--> &copy; <?php echo date("Y"); ?>
 			<?php endif; ?>
-			ProcessWire <?php echo $config->versionName . ' <!--v' . $config->systemVersion; ?>--> &copy; <?php echo date("Y"); ?> 
 			</p>
 
 			<?php 
 			echo $extras['footer'];
-			if($config->debug && $this->user->isSuperuser()) include($config->paths->root . '/wire/templates-admin/debug.inc'); 
+			if($config->debug && $user->isSuperuser()) include($config->paths->root . '/wire/templates-admin/debug.inc');
 			?>
 		</div>
 	</div><!--/#footer-->

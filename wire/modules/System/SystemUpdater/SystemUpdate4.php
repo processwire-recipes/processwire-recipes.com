@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * Adds a 'data' column to the fieldgroups_fields table

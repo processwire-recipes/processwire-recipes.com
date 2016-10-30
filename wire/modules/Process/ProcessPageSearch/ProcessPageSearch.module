@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Page Search Process
@@ -8,12 +8,8 @@
  * For more details about how Process modules work, please see:
  * /wire/core/Process.php
  *
- * ProcessWire 2.x
- * Copyright (C) 2011 by Ryan Cramer
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -23,7 +19,7 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 		return array(
 			'title' => 'Page Search',
 			'summary' => 'Provides a page search engine for admin use.',
-			'version' => 105,
+			'version' => 106,
 			'permanent' => true,
 			'permission' => 'page-edit',
 			);
@@ -41,6 +37,7 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 		'parent_id',
 		'created',
 		'modified',
+		'published',
 		'modified_users_id',
 		'created_users_id',
 		'createdUser',
@@ -113,7 +110,7 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 	 */
 	public function ___execute() {
 		
-		if($this->wire('user')->hasPermission('lister')) {
+		if($this->wire('user')->hasPermission('page-lister')) {
 			if($this->wire('modules')->isInstalled('ProcessPageLister')) {
 				$this->lister = $this->wire('modules')->get('ProcessPageLister');
 			}
@@ -164,8 +161,27 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 		$status = 0;
 		$names = array();
 		$adminSearchStr = '';
+		$languages = $this->wire('languages');
+		$userLanguage = null;
+		$user = $this->wire('user');
+		$superuser = $user->isSuperuser();
+		$checkEditAccess = false;
 		
 		foreach($this->input->get as $name => $value) {
+			
+			if($name == 'get' || $name == 'display' || $name == 'format_name') continue; 
+			if($name == 'lang_id') {
+				if($languages) {
+					// force results for specific language
+					$language = $languages->get((int) $value);
+					if(!$language->id) continue;
+					if($user->language->id != $language->id) {
+						$userLanguage = $user->language;
+						$user->language = $language;
+					}
+				}
+				continue;
+			}
 
 			// operator has no '=', so we'll get the value from the name
 			// so that you can do something like: bedrooms>5 rather than bedrooms>=5
@@ -187,10 +203,7 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 			}
 
 			// replace '-' with '.' since '.' is not allowed in URL variable names
-			if(strpos($name, '-')) {
-				list($name, $subname) = explode('-', $name); 
-				$name = "$name.$subname";
-			}
+			if(strpos($name, '-')) $name = str_replace('-', '.', $name); 
 
 			if(strpos($name, ',')) $name = $this->sanitizer->names($name, ',', array('_', '.')); 
 				else $name = $this->sanitizer->pageName($name); // note: switch to pageName over fieldName to support "." 
@@ -210,14 +223,21 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 			}
 
 			// if dealing with a user other than superuser, only allow include=hidden
-			if($name == 'include' && $value != 'hidden' && !$this->user->isSuperuser()) $value = 'hidden';
+			if($name == 'include' && $value != 'hidden' && !$superuser) {
+				if($user->hasPermission('page-edit') && $this->input->get('admin_search')) {
+					$value = 'unpublished';
+					$checkEditAccess = true;
+				} else {
+					$value = 'hidden';
+				}
+			}
 		
 			// don't allow setting of check_access property, except for superuser
-			if($name == 'check_access' && !$this->user->isSuperuser()) continue; 
+			if($name == 'check_access' && !$superuser) continue; 
 			
 			// don't allow setting of the 'status' property, except for superuser
 			if($name == 'status') {
-				if(!$this->user->isSuperuser()) continue; 
+				if(!$superuser) continue; 
 				$status = (int) $value;
 			}
 			
@@ -232,18 +252,32 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 			if(strpos($name, ',')) $name = str_replace(',', '|', $name); 
 
 			if(!$this->isSelectableFieldName($name)) continue; 
-
-			if(strpos($value, '|')) {
-				$values = explode('|', $value); 
-				foreach($values as $k => $v) $values[$k] = $this->sanitizer->selectorValue($v);
-				$value = implode('|', $values); 
+			
+			if(strpos($value, ',')) {
+				// commas between words: split one key=value, into multiple key=value, key=value
+				$valuesAND = explode(',', $value); 
 			} else {
-				$value = $this->sanitizer->selectorValue($value); 
+				$valuesAND = array($value);
 			}
 
-			$this->input->whitelist($name . rtrim($operator, '='), trim($value, '"\'')); 	
+			foreach($valuesAND as $key => $val) {
+				if(strpos($val, '|')) {
+					$valuesOR = explode('|', $val);
+					foreach($valuesOR as $k => $v) {
+						$valuesOR[$k] = $this->sanitizer->selectorValue($v);
+					}
+					$val = implode('|', $valuesOR);
+				} else {
+					$val = $this->sanitizer->selectorValue($val);
+				}
+				$valuesAND[$key] = $val;
+			}
+			$value = implode(',', $valuesAND); 
 
-			$selector .= "$name$operator$value, ";
+			$this->input->whitelist($name . rtrim($operator, '='), trim($value, '"\'')); 	
+			foreach($valuesAND as $val) {
+				$selector .= "$name$operator$val, ";
+			}
 			$names[] = $name; 
 		}
 		
@@ -267,11 +301,30 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 			if(count($repeaters)) $selector .= ", has_parent!=" . $repeaters->first()->id; 
 		}
 
-		if($this->user->isSuperuser() && !$status && !preg_match('/\binclude=/', $selector)) {
-			$selector .= ", include=all, status<" . Page::statusTrash; 
+		if(!$status && !preg_match('/\binclude=/', $selector)) {
+			if($superuser) {
+				// superuser only
+				$selector .= ", include=all, status<" . Page::statusTrash;
+			} else if($this->adminSearchMode && $user->hasPermission('page-edit')) {
+				// admin search mode and user has some kind of page-edit permission
+				$selector .= ", include=unpublished, status<" . Page::statusTrash;
+				$checkEditAccess = true;
+			} 
 		}
-
-		return $this->render($this->pages->find($selector), $displaySelector); 
+	
+		$items = $this->pages->find($selector);
+		
+		if(!$superuser && $checkEditAccess) {
+			// filter out non-editable pages, since some may be included via include=unpublished
+			foreach($items as $item) {
+				if(!$item->editable()) $items->remove($item);
+			}
+		}
+		
+		$out = $this->render($items, $displaySelector);
+		if($userLanguage) $user->language = $userLanguage;
+		
+		return $out; 
 	}
 
 	/**
@@ -279,10 +332,13 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 	 *
 	 */
 	protected function getDisplayFields() {
+		
 		$display = $this->input->get('display');
+		
 		if(!strlen($display)) $display = $this->input->get('get'); // as required by ProcessPageSearch API 
 		if(!strlen($display)) $display = $this->displayField;
 		if(!strlen($display)) $display = 'title path';
+		
 		$display = str_replace(',', ' ', $display);
 		$display = explode(' ', $display); // convert to array
 
@@ -293,7 +349,46 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 			if(in_array($name, array('url', 'path', 'httpUrl'))) continue;
 			unset($display[$key]);
 		}
-		return $display;
+		
+		return array_values($display);
+	}
+
+	/**
+	 * As an alternative to getting specific fields, return a format string
+	 * 
+	 * This format string must be pre-populated to session variable:
+	 * ProcessPageSearch.[format_name] = '{title} - {path}'; // format string
+	 * 
+	 * The name the session variable must be provided as a GET var: format_name=[name]
+	 * 
+	 * @return mixed|string
+	 * 
+	 */
+	protected function getDisplayFormat() {
+		$name = $this->input->get('format_name');
+		if(empty($name)) return '';
+		$data = $this->wire('session')->getFor($this, "format_" . $name);
+		if(empty($data)) return '';
+		return array(
+			'name' => $name,
+			'format' => $data['format'],
+			'textOnly' => $data['textOnly']
+		);
+	}
+
+	/**
+	 * Set a display format
+	 * 
+	 * @param string $name Session var name that will be used, output will be returned in JSON results indexed by $name as well.
+	 * @param string $format Format string to pass to $page->getMarkup(str)
+	 * @param bool $textOnly 
+	 * 
+	 */
+	public function setDisplayFormat($name, $format, $textOnly = false) {
+		$this->wire('session')->setFor($this, "format_" . $name, array(
+			'format' => $format,
+			'textOnly' => $textOnly
+		));
 	}
 
 	/**
@@ -306,11 +401,16 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 		if($displaySelector) $this->message(sprintf($this->_n('Found %1$d page using selector: %2$s', 'Found %1$d pages using selector: %2$s', $matches->getTotal()), $matches->getTotal(), $displaySelector));
 
 		// determine what fields will be displayed
-		$display = $this->getDisplayFields();
-		$this->input->whitelist('display', implode(',', $display)); 
+		$display = array();
+		if($this->config->ajax) $display = $this->getDisplayFormat();
+		if(empty($display)) {
+			$display = $this->getDisplayFields();
+			$this->input->whitelist('display', implode(',', $display));
+		}
 
 		if($this->config->ajax) {
 			// ajax json output
+			header("Content-type: application/json"); 
 			$out = $this->renderMatchesAjax($matches, $display, $displaySelector); 
 
 		} else {
@@ -477,6 +577,11 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 	 *
 	 */
 	protected function isSelectableFieldName($name, $level = 0) {
+		
+		$selectable = array(
+			'parent', 'template', 'template_label', 'has_parent', 'hasParent', 
+			'children', 'numChildren', 'num_children', 'count', 'path', 
+		);
 
 		$is = false;
 
@@ -490,14 +595,18 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 			list($name, $subname) = explode('.', $name); 
 			if(!$this->isSelectableFieldName($subname, $level)) return false;	
 		}
+		
+		if($name == 'path' && (!$this->wire('modules')->isInstalled('PagePaths') || $this->wire('languages'))) {
+			$name = 'name';
+		}
 
 		if(in_array($name, $this->nativeSorts)) $is = true; 
- 			else if(in_array($name, array('parent', 'template', 'template_label', 'has_parent', 'hasParent', 'children', 'numChildren', 'num_children', 'count'))) $is = true; 
+ 			else if(in_array($name, $selectable)) $is = true; 
 			else if(!$level && in_array($name, array('include', 'status', 'check_access'))) $is = true; 
 			else if(in_array($name, $this->fieldOptions)) $is = true; 
 
-
-		if($name == 'pass' || $name == 'config') $is = false;
+		if($name == 'pass' || $name == 'config' || $name == 'it' || $name == 'display') $is = false;
+		
 		return $is; 
 	}
 
@@ -680,7 +789,7 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 					if($value instanceof Page) $value = $value->name;
 				}
 				$value = strip_tags($value);
-				if($name == 'created' || $name == 'modified') $value = date(DATE_ISO8601, $value);
+				if($name == 'created' || $name == 'modified' || $name == 'published') $value = date(DATE_ISO8601, $value);
 				$row[] = "<a href='$viewUrl'>$value</a>";
 			}
 			$row[] = $match->editable() ? "<a class='action' href='$editUrl'>" . $this->_('edit') . "</a>" : '&nbsp;';
@@ -759,9 +868,13 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 
 	/**
 	 * Render the provided matches as a JSON string for AJAX use
+	 * 
+	 * @param PageArray $matches
+	 * @param array Array of fields to display, or display format associative array
+	 * @param string $selector
 	 *
 	 */
-	protected function renderMatchesAjax(PageArray $matches, array $display, $selector) {
+	protected function renderMatchesAjax(PageArray $matches, $display, $selector) {
 
 		$a = array(
 			'selector' => $selector, 
@@ -773,7 +886,7 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 
 		// determine which template label we'll be asking for (for multi-language support)
 		$templateLabel = 'label';
-		if(wire('languages')) {
+		if($this->wire('languages')) {
 			$language = $this->user->language; 
 			if($language && !$language->isDefault()) $templateLabel = "label$language";
 		}
@@ -781,11 +894,13 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 		if($this->adminSearchMode && $this->user->isSuperuser()) {
 			// enable search to include users when adminSearchMode and superuser
 			$a['matches'] = $this->findOtherTypes($this->input->get('admin_search')); 	
-			$users = $this->wire('users')->find("name%=" . $this->wire('sanitizer')->pageName($this->input->get('admin_search'))); 
+			$users = $this->wire('users')->find("name%=" . 
+				$this->wire('sanitizer')->pageName($this->input->get('admin_search'), Sanitizer::toAscii)); 
 			if(count($users)) $matches->prepend($users);
 		}
 
 		foreach($matches as $page) {
+			/** @var Page $page */
 
 			$p = array(
 				'id' => $page->id, 
@@ -805,23 +920,36 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 				$p['type'] = $this->_x('Pages', 'match-type');
 				$p['editUrl'] = $page->editable() ? $this->config->urls->admin . 'page/edit/?id=' . $page->id : '';
 			}
-		
-			foreach($display as $key) {
-				
-				if($key == 'template_label') {
-					$p['template_label'] = $page->template->$templateLabel ? $page->template->$templateLabel : $page->template->label;
-					if(empty($p['template_label'])) $p['template_label'] = $page->template->name; 
-					continue; 
+			
+			if(isset($display['name']) && isset($display['format'])) {
+				// use display format, returning a 'value' property containing the formatted value
+				if($display['textOnly']) {
+					$value = $page->getText($display['format'], true, false);
+				} else {
+					$value = $page->getMarkup($display['format']);
 				}
+				$p[$display['name']] = $value; 
 				
-				$value = $page->get($key);
-				if(empty($value) && $this->adminSearchMode) {
-					if($key == 'title') $value = $page->name; // prevent empty title
+			} else {
+				// use display fields
+				foreach($display as $k => $key) {
+
+					if($key == 'template_label') {
+						$p['template_label'] = $page->template->$templateLabel ? $page->template->$templateLabel : $page->template->label;
+						if(empty($p['template_label'])) $p['template_label'] = $page->template->name;
+						continue;
+					}
+
+					$value = $page->get($key);
+					if(empty($value) && $this->adminSearchMode) {
+						if($key == 'title') $value = $page->name; // prevent empty title
+					}
+
+					if(is_object($value)) $value = $this->setupObjectMatch($value);
+					if(is_array($value)) $value = $this->setupArrayMatch($value);
+
+					$p[$key] = $value;
 				}
-				
-				if(is_object($value)) $value = $this->setupObjectMatch($value); 
-				if(is_array($value)) $value = $this->setupArrayMatch($value);
-				$p[$key] = $value;
 			}
 
 			$a['matches'][] = $p;
@@ -890,41 +1018,42 @@ class ProcessPageSearch extends Process implements ConfigurableModule {
 
 	}
 
-	static public function getModuleConfigInputfields(array $data) {
+	public function getModuleConfigInputfields(array $data) {
 
-		$inputfields = new InputfieldWrapper();
+		$inputfields = $this->wire(new InputfieldWrapper());
+		$modules = $this->wire('modules');
 
-		$inputfield = Wire::getFuel('modules')->get("InputfieldText");
+		$inputfield = $modules->get("InputfieldText");
 		$inputfield->attr('name', 'searchFields');
 		if(!isset($data['searchFields'])) $data['searchFields'] = 'title body';
 		if(is_array($data['searchFields'])) $data['searchFields'] = implode(' ', $data['searchFields']);
 		$inputfield->attr('value', $data['searchFields']);
-		$inputfield->label = __("Default fields to search");
-		$description = __("Enter the names for one or more text-based fields that you want to search, separating each by a space."); // Default fields description
+		$inputfield->label = $this->_("Default fields to search");
+		$description = $this->_("Enter the names for one or more text-based fields that you want to search, separating each by a space."); // Default fields description
 		$inputfield->description = $description; 
 		$inputfields->append($inputfield);
 		
-		$inputfield = Wire::getFuel('modules')->get("InputfieldText");
+		$inputfield = $modules->get("InputfieldText");
 		$inputfield->attr('name', 'searchFields2');
 		if(!isset($data['searchFields2'])) $data['searchFields2'] = 'title';
 		if(is_array($data['searchFields2'])) $data['searchFields2'] = implode(' ', $data['searchFields2']);
 		$inputfield->attr('value', $data['searchFields2']);
-		$inputfield->label = __("Field(s) to search in admin search (ajax) mode");
+		$inputfield->label = $this->_("Field(s) to search in admin search (ajax) mode");
 		$inputfield->description = $description;
-		$inputfield->notes = __("We recommend limiting this to 1 or 2 fields at the most since results populate a live autocomplete field. Typically you would just search the title."); // Fields to search description
+		$inputfield->notes = $this->_("We recommend limiting this to 1 or 2 fields at the most since results populate a live autocomplete field. Typically you would just search the title."); // Fields to search description
 		$inputfields->append($inputfield);
 
-		$inputfield = Wire::getFuel('modules')->get("InputfieldText");
+		$inputfield = $modules->get("InputfieldText");
 		$inputfield->attr('name', 'displayField');
 		$inputfield->attr('value', isset($data['displayField']) ? $data['displayField'] : 'name');
-		$inputfield->label = __("Default field name(s) to display in search results");
-		$inputfield->description = __("If specifying more than one field, separate each with a space.");
+		$inputfield->label = $this->_("Default field name(s) to display in search results");
+		$inputfield->description = $this->_("If specifying more than one field, separate each with a space.");
 		$inputfields->append($inputfield);
 
-		$inputfield = Wire::getFuel('modules')->get("InputfieldSelect");
+		$inputfield = $modules->get("InputfieldSelect");
 		$inputfield->attr('name', 'operator');
 		$inputfield->attr('value', isset($data['operator']) ? $data['operator'] : self::defaultOperator);
-		$inputfield->label = __("Default search operator");
+		$inputfield->label = $this->_("Default search operator");
 		foreach(self::getOperators() as $operator => $label) {
 			$inputfield->addOption($operator, "$operator $label"); 
 		}
