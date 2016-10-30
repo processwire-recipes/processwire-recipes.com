@@ -10,21 +10,34 @@ html {
 }
 body {
 	min-height: 100%;
-	margin: 0 0 65px;
+	margin: 0 0 4.0625em;
 }
 
 .inner {
 	@extend %clearfix;
 	position: relative;
 	margin: 0 auto;
-	padding: 25px;
-	max-width: 1140px;
-	min-width: 810px;
+	padding: 1.5rem;
+	max-width: 71.25rem;
 }
 
 .col-50 {
-	width: 48%;
-	margin: 0 1%;
+	width: 48.5%;
+	margin: 0 1.5%;
 	float: left;
 	display: inline-block;
+
+	&:nth-child(odd) {
+		margin-left: 0;
+	}
+	&:nth-child(even) {
+		margin-right: 0;
+
+	}
+}
+
+main {
+	img {
+		max-width: 100%;
+	}
 }

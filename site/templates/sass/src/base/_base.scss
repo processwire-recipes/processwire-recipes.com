@@ -22,7 +22,7 @@ input:focus {
 .btn {
 	display: inline-block;
 	margin-top: 20px;
-	padding: 12px;
+	padding: .6667em;
 	border: 1px solid $blue;
 	text-decoration: none;
 }
@@ -35,4 +35,9 @@ input:focus {
 	position: absolute;
 	white-space: nowrap;
 	width: 1px;
+}
+
+input[type="text"] {
+	-webkit-appearance: none;
+	border-radius: 0;
 }

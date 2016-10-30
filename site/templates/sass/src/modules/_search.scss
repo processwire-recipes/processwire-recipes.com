@@ -15,18 +15,18 @@
 .module-search__query {
 	padding: 0 8px;
 	width: 100%;
-	height: 38px;
+	height: 2.375rem;
 	border: none;
 	color: $black;
-	line-height: 38px;
+	line-height: 2.375rem;
 }
 
 .module-search__submit {
 	position: absolute;
 	right: 0;
 	bottom: 0;
-	width: 40px;
-	height: 40px;
+	width: 2.5rem;
+	height: 2.5rem;
 	border: none;
 	background: transparent;
 
@@ -58,7 +58,7 @@
 
 	li {
 		padding: 0 8px;
-		line-height: 32px;
+		line-height: 2rem;
 
 		&:focus {
 			font-weight: 700;

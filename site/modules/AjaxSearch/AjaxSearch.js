@@ -96,12 +96,12 @@ $(function(){
 
 		$('.ajaxSearch_close')
 			.on('click',function(){
-				$(this).closest('#ajaxSearch').attr('aria-hidden', 'true').fadeOut();
+				$(this).closest('#ajaxSearch').attr('aria-hidden', false).fadeOut();
 			});
 	}
 
 	// close popup on click outside
 	$(document).click(function(e){
-		if($(e.target).closest('#ajaxSearch').length == 0) $("#ajaxSearch").attr('aria-hidden', 'true').fadeOut();
+		if($(e.target).closest('#ajaxSearch').length == 0) $("#ajaxSearch").attr('aria-hidden', true).fadeOut();
 	});
 });

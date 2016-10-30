@@ -5,11 +5,17 @@
 // ---------------------------------------------------------------
 
 .welcome-box {
-	margin-bottom: 30px;
+	margin-bottom: 1.875rem;
 }
 
 .btn {
-	margin-top: 10px;
-	margin-right: 6px;
-	padding: 15px;
+	margin-top: .5rem;
+	margin-right: .5rem;
+	padding: .9rem;
+	display: inline-block;
+	float: left;
+
+	.fa {
+		margin-right: .2rem;
+	}
 }

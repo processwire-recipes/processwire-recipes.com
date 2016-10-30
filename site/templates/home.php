@@ -6,9 +6,12 @@
 
 		{{ body }}
 
-		<a href="//github.com/processwire-recipes/Recipes" class="btn btn-default" target="_blank"><i class="fa fa-github-square"></i> Contribute via Pull Request on GitHub</a>
-		<a href="//processwire-recipes.com/feed" class="btn btn-default" target="_blank"><i class="fa fa-rss"></i> Grab the Recipe feed</a>
-		<a href="//twitter.com/pwrecipes" class="btn btn-default" target="_blank"><i class="fa fa-twitter"></i> Follow us on twitter</a>
+		<ul class="welcome-links">
+			<li><a href="//github.com/processwire-recipes/Recipes" class="btn btn-default" target="_blank"><i class="fa fa-github-square"></i> Contribute via Pull Request</a></li>
+			<li><a href="//processwire-recipes.com/feed" class="btn btn-default" target="_blank"><i class="fa fa-rss"></i> Grab the Recipe feed</a></li>
+			<li><a href="//twitter.com/pwrecipes" class="btn btn-default" target="_blank"><i class="fa fa-twitter"></i> Follow us on twitter</a></li>
+		</ul>
+
 	</div>
 
 	<div class="module module-taglist">
