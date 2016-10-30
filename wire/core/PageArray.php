@@ -1,44 +1,31 @@
-<?php
+<?php 
 
 /**
  * ProcessWire PageArray
  *
  * PageArray provides an array-like means for storing PageReferences and is utilized throughout ProcessWire. 
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * #pw-summary PageArray is a paginated type of WireArray that holds multiple Page objects. 
+ * #pw-body =
+ * **Please see the `WireArray` and `PaginatedArray` types for available methods**, as they are not 
+ * repeated here, except where PageArray has modified or extended those types in some manner.
+ * The PageArray type is functionally identical to WireArray and PaginatedArray except that it is focused
+ * specifically on managing Page objects. 
  * 
- * http://processwire.com
+ * PageArray is returned by all API methods in ProcessWire that can return more than one page at once. 
+ * `$pages->find()` and `$page->children()` are common examples. 
+ * #pw-body
+ * 
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ * 
+ * @method string getMarkup($key = null) Render a simple/default markup value for each item #pw-internal
+ * 
+ * @property Page[] $data #pw-internal
  *
  */
 
-class PageArray extends WireArray {
-
-	/**
-	 * Total number of pages, including those here and others that aren't, but may be here in pagination.
-	 * @var int
-	 */
-	protected $numTotal = 0;	
-
-	/**
-	 * If this PageArray is a partial representation of a larger set, this will contain the max number of pages allowed to be 
-	 * present/loaded in the PageArray at once. 
-	 * 
-	 * May vary from count() when on the last page of a result set. 
-	 * As a result, paging routines should refer to their own itemsPerPage rather than count().
-	 * Applicable for paginated result sets. This number is not enforced for adding items to this PageArray.
-	 *
-	 * @var int
-	 */
-	protected $numLimit = 0; 	
-
-	/**
-	 * If this PageArray is a partial representation of a larger set, this will contain the starting result number if previous results preceded it. 
-	 *
-	 * @var int
-	 */
-	protected $numStart = 0; 
+class PageArray extends PaginatedArray implements WirePaginatable {
 
 	/**
 	 * Reference to the selectors that led to this PageArray, if applicable
@@ -49,7 +36,35 @@ class PageArray extends WireArray {
 	protected $selectors = null;
 
 	/**
+	 * Options that were passed to $pages->find() that led to this PageArray, when applicable.
+	 * 
+	 * Applies only for lazy loading result sets.
+	 * 
+	 * @var array
+	 * 
+	 */
+	protected $finderOptions = array();
+
+	/**
+	 * Is this a lazy-loaded PageArray?
+	 * 
+	 * @var bool
+	 * 
+	 */
+	protected $lazyLoad = false;
+
+	/**
+	 * Index of item keys of page_id => data key
+	 * 
+	 * @var array
+	 * 
+	 */
+	protected $keyIndex = array();
+
+	/**
 	 * Template mehod that descendant classes may use to validate items added to this WireArray
+	 * 
+	 * #pw-internal
 	 *
 	 * @param mixed $item Item to add
 	 * @return bool True if item is valid and may be added, false if not
@@ -62,7 +77,9 @@ class PageArray extends WireArray {
 	/**
 	 * Validate the key used to add a Page
 	 *
-	 * PageArrays are keyed by an incremental number that does NOT relate to the Page ID. 
+	 * PageArrays are keyed by an incremental number that does NOT relate to the Page ID.
+	 * 
+	 * #pw-internal
 	 *
 	 * @param string|int $key
 	 * @return bool True if key is valid and may be used, false if not
@@ -73,15 +90,72 @@ class PageArray extends WireArray {
 	}
 
 	/**
+	 * Get the array key for the given Page item
+	 *
+	 * This method is used internally by the add() and prepend() methods.
+	 *
+	 * #pw-internal
+	 *
+	 * @param Page $item Page to get key for
+	 * @return string|int|null Found key, or null if not found.
+	 *
+	 */
+	public function getItemKey($item) {
+		if(!$item instanceof Page) return null;	
+		
+		// first see if we can determine key from our index
+		$id = $item->id;
+		if(isset($this->keyIndex[$id])) {
+			// given item exists in this PageArray (or at least has)
+			$key = $this->keyIndex[$id];
+			if(isset($this->data[$key])) {
+				$page = $this->data[$key];
+				if($page->id === $id) {
+					// found it
+					return $key; 
+				}
+			}
+			// if this point is reached, then index needs to be rebuilt
+			// because either item is no longer here, or has moved
+			$this->keyIndex = array();
+			foreach($this->data as $key => $page) {
+				$this->keyIndex[$page->id] = $key;
+			}
+			return isset($this->keyIndex[$id]) ? $this->keyIndex[$id] : null;
+		} else {
+			// page is not present here
+			return null;
+		}
+	}
+
+	/**
+	 * Does this PageArray use numeric keys only? (yes it does)
+	 * 
+	 * Defined here to override the slower check in WireArray
+	 * 
+	 * @return bool
+	 *
+	 */
+	protected function usesNumericKeys() {
+		return true;
+	}
+
+	/**
 	 * Per WireArray interface, return a blank Page
+	 * 
+	 * #pw-internal
+	 * 
+	 * @return Page
 	 *
 	 */
 	public function makeBlankItem() {
-		return new Page();
+		return $this->wire('pages')->newPage();
 	}
 
 	/**
 	 * Import the provided pages into this PageArray.
+	 * 
+	 * #pw-internal
 	 * 
 	 * @param array|PageArray|Page $pages Pages to import. 
 	 * @return PageArray reference to current instance. 
@@ -106,59 +180,42 @@ class PageArray extends WireArray {
 	*/
 
 	/**
-	 * Get a property of the PageArray
-	 *
-	 * These map to functions form the array and are here for convenience.
-	 * Properties include count, total, start, limit, last, first, keys, values, 
-	 * These can also be accessed by direct reference. 
-	 *
-	 * @param string $property
-	 * @return mixed
-	 *
-	 */
-	public function getProperty($property) {
-		static $properties = array(
-			// property => method to map to
-			'total' => 'getTotal',	
-			'start' => 'getStart',
-			'limit' => 'getLimit',
-			);
-		if(!in_array($property, $properties)) return parent::getProperty($property);
-		$func = $properties[$property];
-		return $this->$func();
-	}
-
-	/**
-	 * Does this PageArray contain the given index or Page? 
+	 * Does this PageArray contain the given index or Page?
+	 * 
+	 * #pw-internal
 	 *
 	 * @param Page|int $key Page Array index or Page object. 
 	 * @return bool True if the index or Page exists here, false if not. 
 	 */  
 	public function has($key) {
-
-		if(is_int($key) || is_string($key)) return parent::has($key); 
-
-		$has = false; 
-
 		if(is_object($key) && $key instanceof Page) {
-			foreach($this as $k => $pg) {
-				$has = ($pg->id == $key->id); 
-				if($has) break;
-			}
+			return $this->getItemKey($key) !== null;
 		}
-
-		return $has; 
+		return parent::has($key); 
 	}
 
 
 	/**
-	 * Add a Page to this PageArray.
+	 * Add one or more Page objects to this PageArray.
+	 * 
+	 * Please see the `WireArray::add()` method for more details. 
+	 * 
+	 * ~~~~~
+	 * // Add one page
+	 * $pageArray->add($page); 
+	 *
+	 * // Add multiple pages 
+	 * $pageArray->add($pages->find("template=basic-page")); 
+	 * 
+	 * // Add page by ID
+	 * $pageArray->add(1005); 
+	 * ~~~~~
 	 *
 	 * @param Page|PageArray|int $page Page object, PageArray object, or Page ID. 
-	 *	If Page, the Page will be added. 
-	 * 	If PageArray, it will do the same thing as the import() function: import all the pages. 
-	 * 	If Page ID, it will be loaded and added. 
-	 * @return PageArray reference to current instance.
+	 *  - If given a `Page`, the Page will be added. 
+	 *  - If given a `PageArray`, it will do the same thing as the `WireArray::import()` method and append all the pages. 
+	 *  - If Page `ID`, the Page identified by that ID will be loaded and added to the PageArray. 
+	 * @return $this
 	 */
 	public function add($page) {
 
@@ -170,7 +227,8 @@ class PageArray extends WireArray {
 			return $this->import($page);
 
 		} else if(ctype_digit("$page")) {
-			if($page = $this->getFuel('pages')->findOne("id=$page")) {
+			$page = $this->wire('pages')->get("id=$page");
+			if($page->id) {
 				parent::add($page); 
 				$this->numTotal++;
 			}
@@ -181,6 +239,8 @@ class PageArray extends WireArray {
 
 	/**
 	 * Sets an index in the PageArray.
+	 * 
+	 * #pw-internal
 	 *
 	 * @param int $key Key of item to set.
 	 * @param Page $value Value of item. 
@@ -196,6 +256,8 @@ class PageArray extends WireArray {
 
 	/**
 	 * Prepend a Page to the beginning of the PageArray. 
+	 * 
+	 * #pw-internal
 	 *
 	 * @param Page|PageArray $item 
 	 * @return WireArray This instance.
@@ -213,24 +275,20 @@ class PageArray extends WireArray {
 	/**
 	 * Remove the given Page or key from the PageArray. 
 	 * 
+	 * #pw-internal
+	 * 
 	 * @param int|Page $key
 	 * @return bool true if removed, false if not
 	 * 
 	 */
 	public function remove($key) {
 
-		// if a Page object has been passed, determine it's key
+		// if a Page object has been passed, determine its key
 		if($this->isValidItem($key)) {
-			foreach($this->data as $k => $pg) {
-				if($pg->id == $key->id) {
-					$key = $k; 
-					break;
-				}
-			}
+			$key = $this->getItemKey($key);
 		} 
-
 		if($this->has($key)) {
-			parent::remove($key); 
+			parent::remove($key);
 			$this->numTotal--;
 		}
 
@@ -239,6 +297,8 @@ class PageArray extends WireArray {
 
 	/**
 	 * Shift the first Page off of the PageArray and return it. 
+	 * 
+	 * #pw-internal
 	 * 
 	 * @return Page|NULL
 	 * 
@@ -250,6 +310,8 @@ class PageArray extends WireArray {
 
 	/**
 	 * Pop the last page off of the PageArray and return it. 
+	 * 
+	 * #pw-internal
 	 *
 	 * @return Page|NULL 
 	 * 
@@ -259,92 +321,97 @@ class PageArray extends WireArray {
 		return parent::pop();
 	}
 
-
 	/**
-	 * Set the total number of pages, if more than are in this PageArray. 
-	 * 
-	 * Used for pagination. 
+	 * Get one or more random pages from this PageArray.
 	 *
-	 * @param int $total 
-	 * @return PageArray reference to current instance.
+	 * If one item is requested, the item is returned (unless $alwaysArray is true).
+	 * If multiple items are requested, a new WireArray of those items is returned.
 	 * 
-	 */
-	public function setTotal($total) { 
-		$this->numTotal = (int) $total; 
-		return $this;
-	}	
-
-
-	/**
-	 * Get the total number of pages, if more than are in this PageArray. 
-	 * 
-	 * Used for pagination. 
+	 * #pw-internal
 	 *
-	 * @return int
-	 * 
+	 * @param int $num Number of items to return. Optional and defaults to 1.
+	 * @param bool $alwaysArray If true, then method will always return a container of items, even if it only contains 1.
+	 * @return Page|PageArray Returns value of item, or new PageArray of items if more than one requested.
 	 */
-	public function getTotal() {
-		return $this->numTotal;
-	}
-
-
-	/**
-	 * Get the imposed limit on number of pages. 
-	 * 
-	 * If no limit set, then return number of pages currently in this PageArray. 
-	 * 
-	 * Used for pagination. 
-	 * 
-	 * @return int
-	 * 
-	 */
-	public function getLimit() {
-		if($this->numLimit) return $this->numLimit; 
-			else return $this->count(); 
-	}
-
-
-	/**
-	 * Set the 'start' limitor that resulted in this PageArray
-	 *
-	 * @param int $numStart; 
-	 * @return $this
-	 *
-	 */
-	public function setStart($numStart) {
-		$this->numStart = (int) $numStart; 
-		return $this;
+	public function getRandom($num = 1, $alwaysArray = false) {
+		return parent::getRandom($num, $alwaysArray);
 	}
 
 	/**
-	 * If a limit was imposed, get the index of the starting result assuming other results preceded those present in this PageArray
+	 * Get a quantity of random pages from this PageArray.
 	 *
-	 * Used for pagination.
-	 * 	
-	 * @return int
+	 * Unlike getRandom() this one always returns a PageArray (or derived type).
+	 * 
+	 * #pw-internal
+	 *
+	 * @param int $num Number of items to return
+	 * @return PageArray
 	 *
 	 */
-	public function getStart() {
-		return $this->numStart; 
+	public function findRandom($num) {
+		return parent::findRandom($num);
 	}
 
+	/**
+	 * Get a slice of the PageArray.
+	 *
+	 * Given a starting point and a number of items, returns a new PageArray of those items.
+	 * If $limit is omitted, then it includes everything beyond the starting point.
+	 * 
+	 * #pw-internal
+	 *
+	 * @param int $start Starting index.
+	 * @param int $limit Number of items to include. If omitted, includes the rest of the array.
+	 * @return PageArray
+	 *
+	 */
+	public function slice($start, $limit = 0) {
+		return parent::slice($start, $limit);
+	}
 
 	/**
-	 * Set the imposed limit that resulted in this PageArray.
-	 * 
-	 * Used for pagination. 
+	 * Returns the item at the given index starting from 0, or NULL if it doesn't exist.
 	 *
-	 * @param int $numLimit
-	 * @return PageArray reference to current instance.
+	 * Unlike the index() method, this returns an actual item and not another PageArray.
 	 * 
+	 * #pw-internal
+	 *
+	 * @param int $num Return the nth item in this WireArray. Specify a negative number to count from the end rather than the start.
+	 * @return Page|null
+	 *
 	 */
-	public function setLimit($numLimit) {
-		$this->numLimit = $numLimit; 
-		return $this; 
+	public function eq($num) {
+		return parent::eq($num);
+	}
+
+	/**
+	 * Returns the first item in the PageArray or boolean FALSE if empty.
+	 * 
+	 * #pw-internal
+	 *
+	 * @return Page|bool
+	 *
+	 */
+	public function first() {
+		return parent::first();
+	}
+
+	/**
+	 * Returns the last item in the PageArray or boolean FALSE if empty.
+	 * 
+	 * #pw-internal
+	 *
+	 * @return Page|bool
+	 *
+	 */
+	public function last() {
+		return parent::last();
 	}
 
 	/**
 	 * Set the Selectors that led to this PageArray, if applicable
+	 * 
+	 * #pw-internal
 	 *
 	 * @param Selectors $selectors
 	 * @return $this
@@ -356,9 +423,17 @@ class PageArray extends WireArray {
 	}
 
 	/**
-	 * Return the Selectors that led to this PageArray, or null if not set/applicable
-	 *
-	 * @return Selectors|null
+	 * Return the Selectors that led to this PageArray, or null if not set/applicable.
+	 * 
+	 * Use this to retrieve the Selectors that were used to find this group of pages, 
+	 * if dealing with a PageArray that originated from a database operation. 
+	 * 
+	 * ~~~~~
+	 * $products = $pages->find("template=product, featured=1, sort=-modified, limit=10"); 
+	 * echo $products->getSelectors(); // outputs the selector above
+	 * ~~~~~
+	 * 
+	 * @return Selectors|null Returns Selectors object if available, or null if not. 
 	 *
 	 */
 	public function getSelectors() {
@@ -370,14 +445,68 @@ class PageArray extends WireArray {
 	 * 
 	 * This is applicable to and destructive to the WireArray.
 	 *
-	 * @param string|Selectors $selectors AttributeSelector string to use as the filter.
+	 * @param string|Selectors|array $selectors AttributeSelector string to use as the filter.
 	 * @param bool $not Make this a "not" filter? (default is false)
-	 * @return WireArray reference to current [filtered] instance
+	 * @return PageArray reference to current [filtered] instance
 	 *
 	 */
 	protected function filterData($selectors, $not = false) {
 		if(is_string($selectors) && $selectors[0] === '/') $selectors = "path=$selectors";
 		return parent::filterData($selectors, $not); 
+	}
+
+	/**
+	 * Filter out pages that don't match the selector (destructive)
+	 * 
+	 * #pw-internal
+	 *
+	 * @param string $selector AttributeSelector string to use as the filter.
+	 * @return PageArray reference to current instance.
+	 *
+	 */
+	public function filter($selector) {
+		return parent::filter($selector);
+	}
+
+	/**
+	 * Filter out pages that don't match the selector (destructive)
+	 * 
+	 * #pw-internal
+	 *
+	 * @param string $selector AttributeSelector string to use as the filter.
+	 * @return PageArray reference to current instance.
+	 *
+	 */
+	public function not($selector) {
+		return parent::not($selector);
+	}
+
+	/**
+	 * Find all pages in this PageArray that match the given selector (non-destructive)
+	 *
+	 * This is non destructive and returns a brand new PageArray.
+	 * 
+	 * #pw-internal
+	 *
+	 * @param string $selector AttributeSelector string.
+	 * @return PageArray
+	 *
+	 */
+	public function find($selector) {
+		return parent::find($selector);
+	}
+
+	/**
+	 * Same as find, but returns a single Page rather than PageArray or FALSE if empty.
+	 * 
+	 * #pw-internal
+	 *
+	 * @param string $selector
+	 * @return Page|bool
+	 *
+	 */
+	public function findOne($selector) {
+		return parent::findOne($selector);
 	}
 
 	/**
@@ -412,6 +541,7 @@ class PageArray extends WireArray {
 		} else if(strpos($property, '.') !== false) {
 			$value = WireData::_getDot($property, $item);
 		} else if($item instanceof WireArray) {
+			/** @var PageArray $item */
 			$value = $item->getProperty($property); 
 			if(is_null($value)) {
 				$value = $item->first();
@@ -427,6 +557,19 @@ class PageArray extends WireArray {
 	}
 
 	/**
+	 * Allows iteration of the PageArray.
+	 * 
+	 * #pw-internal
+	 *
+	 * @return Page[]|\ArrayObject
+	 *
+	 */
+	public function getIterator() {
+		if($this->lazyLoad) return new PageArrayIterator($this->data, $this->finderOptions);	
+		return parent::getIterator();
+	}
+
+	/**
 	 * PageArrays always return a string of the Page IDs separated by pipe "|" characters
 	 *
 	 * Pipe charactesr are used for compatibility with Selector OR statements
@@ -439,6 +582,101 @@ class PageArray extends WireArray {
 		return $s; 
 	}
 
+	/**
+	 * Render a simple/default markup value for each item in this PageArray.
+	 * 
+	 * For testing/debugging purposes.
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param string|callable $key
+	 * @return string
+	 * 
+	 */
+	public function ___getMarkup($key = null) {
+		if($key && !is_string($key)) {
+			$out = $this->each($key);
+		} else if(strpos($key, '{') !== false && strpos($key, '}')) {
+			$out = $this->each($key);
+		} else {
+			if(empty($key)) $key = "<li>{title|name}</li>";
+			$out = $this->each($key);
+			if($out) {
+				$out = "<ul>$out</ul>";
+				if($this->getLimit() && $this->getTotal() > $this->getLimit()) {
+					$pager = $this->wire('modules')->get('MarkupPagerNav');
+					$out .= $pager->render($this);
+				}
+			}
+		}
+		return $out; 
+	}
+
+
+	/**
+	 * debugInfo PHP 5.6+ magic method
+	 *
+	 * @return array
+	 *
+	 */
+	public function __debugInfo() {
+		$info = parent::__debugInfo();
+		$info['selectors'] = (string) $this->selectors; 
+		if(!count($info['selectors'])) unset($info['selectors']);
+		return $info;
+	}
+
+	/**
+	 * Get or set $options array used by $pages->find() for this PageArray
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param array $options
+	 * @return array
+	 * 
+	 */
+	public function finderOptions(array $options = array()) {
+		$this->finderOptions = $options;
+		return $this->finderOptions;
+	}
+
+	/**
+	 * Get or set Lazy loading state of this PageArray
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param bool|null $lazy
+	 * @return bool
+	 * 
+	 */
+	public function _lazy($lazy = null) {
+		if(is_bool($lazy)) $this->lazyLoad = $lazy;
+		return $this->lazyLoad;
+	}
+
+	/**
+	 * Track an item added
+	 *
+	 * @param Wire|mixed $item
+	 * @param int|string $key 
+	 *
+	 */
+	protected function trackAdd($item, $key) {
+		parent::trackAdd($item, $key);
+		$this->keyIndex[$item->id] = $key;
+	}
+
+	/**
+	 * Track an item removed
+	 *
+	 * @param Wire|mixed $item
+	 * @param int|string $key
+	 *
+	 */
+	protected function trackRemove($item, $key) {
+		parent::trackRemove($item, $key);
+		unset($this->keyIndex[$item->id]);
+	}
 }
 
 

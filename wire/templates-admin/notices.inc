@@ -1,4 +1,5 @@
-<ul id='notices' class='ui-widget'>
+<?php 
+?><ul id='notices' class='ui-widget'>
 <?php
 
 foreach($notices as $notice) {

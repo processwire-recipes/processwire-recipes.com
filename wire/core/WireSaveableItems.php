@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire WireSaveableItems
@@ -6,15 +6,16 @@
  * Wire Data Access Object, provides reusable capability for loading, saving, creating, deleting, 
  * and finding items of descending class-defined types. 
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  * 
- * http://processwire.com
+ * @method WireArray load(WireArray $items, $selectors = null);
+ * @method bool save(Saveable $item);
+ * @method bool delete(Saveable $item);
  *
  */
 
-abstract class WireSaveableItems extends Wire implements IteratorAggregate {
+abstract class WireSaveableItems extends Wire implements \IteratorAggregate {
 
 	/**
 	 * Return the WireArray that this DAO stores it's items in
@@ -45,6 +46,11 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 
 	/**
 	 * Provides additions to the ___load query for when selectors or selector string are provided
+	 * 
+	 * @param Selectors $selectors
+	 * @param DatabaseQuerySelect $query
+	 * @throws WireException
+	 * @return DatabaseQuerySelect
 	 *
 	 */
 	protected function getLoadQuerySelectors($selectors, DatabaseQuerySelect $query) {
@@ -55,7 +61,9 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 			// iterable selectors
 		} else if($selectors && is_string($selectors)) {
 			// selector string, convert to iterable selectors
-			$selectors = new Selectors($selectors); 
+			$selectorString = $selectors;
+			$selectors = $this->wire(new Selectors()); 
+			$selectors->init($selectorString);
 
 		} else {
 			// nothing provided, load all assumed
@@ -66,7 +74,10 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 			'sort' => '', 
 			'limit' => '', 
 			'start' => '',
-			); 
+			);
+		
+		$item = $this->makeBlankItem();
+		$fields = array_keys($item->getTableData());
 
 		foreach($selectors as $selector) {
 
@@ -78,8 +89,9 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 				continue; 
 			}
 
-			if(!in_array($selector->field, $fields)) 
-				throw new WireException("Field '{$selector->field}' is not valid for {$this->className}::load()"); 
+			if(!in_array($selector->field, $fields)) {
+				throw new WireException("Field '{$selector->field}' is not valid for {$this->className}::load()");
+			}
 
 			$selectorField = $database->escapeTableCol($selector->field); 
 			$value = $database->escapeStr($selector->value); 
@@ -113,7 +125,7 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 			$fields[$k] = "$table.$v"; 
 		}
 
-		$query = new DatabaseQuerySelect();
+		$query = $this->wire(new DatabaseQuerySelect());
 		$query->select($fields)->from($table);
 		if($sort = $this->getSort()) $query->orderby($sort); 
 		$this->getLoadQuerySelectors($selectors, $query); 
@@ -140,8 +152,9 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 		$query = $database->prepare($sql);	
 		$query->execute();
 		
-		while($row = $query->fetch(PDO::FETCH_ASSOC)) {
+		while($row = $query->fetch(\PDO::FETCH_ASSOC)) {
 			$item = $this->makeBlankItem();
+			$this->wire($item);
 			foreach($row as $field => $value) {
 				if($field == 'data') {
 					if($value) $value = $this->decodeData($value);
@@ -206,7 +219,7 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 		if($id) {
 			
 			$query = $database->prepare("UPDATE $sql WHERE id=:id");
-			$query->bindValue(":id", $id, PDO::PARAM_INT);
+			$query->bindValue(":id", $id, \PDO::PARAM_INT);
 			$result = $query->execute();
 			
 		} else {
@@ -221,8 +234,10 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 		}
 
 		if($result) {
-			$this->saved($item);
+			$this->saved($item); 
 			$this->resetTrackChanges();
+		} else {
+			$this->error("Error saving '$item'"); 
 		}
 		
 		return $result;
@@ -251,12 +266,14 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 		$table = $database->escapeTable($this->getTable());
 		
 		$query = $database->prepare("DELETE FROM `$table` WHERE id=:id LIMIT 1"); 
-		$query->bindValue(":id", $id, PDO::PARAM_INT); 
+		$query->bindValue(":id", $id, \PDO::PARAM_INT); 
 		$result = $query->execute();
 		
 		if($result) {
 			$this->deleted($item);
 			$item->id = 0; 
+		} else {
+			$this->error("Error deleting '$item'"); 
 		}
 		
 		return $result;	
@@ -265,20 +282,22 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 	/**
 	 * Create and return a cloned copy of this item
 	 *
-	 * If the new item uses a 'name' field, it will contain a number at the end to make it unique
+	 * If no name is specified and the new item uses a 'name' field, it will contain a number at the end to make it unique
 	 *
 	 * @param Saveable $item Item to clone
+	 * @param string $name Optionally specify new name
 	 * @return bool|Saveable $item Returns the new clone on success, or false on failure
 	 *
 	 */
-	public function ___clone(Saveable $item) {
+	public function ___clone(Saveable $item, $name = '') {
 
+		$original = $item;
 		$item = clone $item;
 
 		if(array_key_exists('name', $item->getTableData())) {
 			// this item uses a 'name' field for identification, so we want to ensure it's unique
 			$n = 0;
-			$name = $item->name; 
+			if(!strlen($name)) $name = $item->name; 
 			// ensure the new name is unique
 			while($this->get($name)) $name = $item->name . '_' . (++$n); 
 			$item->name = $name; 
@@ -286,7 +305,11 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 
 		// id=0 forces the save() to create a new field
 		$item->id = 0;
-		if($this->save($item)) return $item; 
+		$this->cloneReady($original, $item); 
+		if($this->save($item)) {
+			$this->cloned($original, $item); 
+			return $item;
+		}
 		return false; 
 	}
 
@@ -376,14 +399,29 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 	public function ___deleteReady(Saveable $item) { }
 	
 	/**
+	 * Hook that runs right before item is to be cloned.
+	 *
+	 * @param Saveable $item
+	 * @param Saveable $copy
+	 *
+	 */
+	public function ___cloneReady(Saveable $item, Saveable $copy) { }
+	
+	/**
 	 * Hook that runs right after an item has been saved. 
 	 *
 	 * Unlike after(save), when this runs, it has already been confirmed that the item has been saved (no need to error check).
 	 *
 	 * @param Saveable $item
+	 * @param array $changes
 	 *
 	 */
-	public function ___saved(Saveable $item) { 
+	public function ___saved(Saveable $item, array $changes = array()) {
+		if(count($changes)) {
+			$this->log("Saved '$item->name', Changes: " . implode(', ', $changes)); 
+		} else {
+			$this->log("Saved", $item);
+		}
 	}
 	
 	/**
@@ -392,7 +430,9 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 	 * @param Saveable $item
 	 *
 	 */
-	public function ___added(Saveable $item) { }
+	public function ___added(Saveable $item) {
+		$this->log("Added", $item);
+	}
 	
 	/**
 	 * Hook that runs right after an item has been deleted. 
@@ -403,8 +443,63 @@ abstract class WireSaveableItems extends Wire implements IteratorAggregate {
 	 *
 	 */
 	public function ___deleted(Saveable $item) { 
+		$this->log("Deleted", $item);
 	}
 
+	/**
+	 * Hook that runs right after an item has been cloned. 
+	 *
+	 * Unlike after(delete), it has already been confirmed that the item was indeed deleted.
+	 *
+	 * @param Saveable $item
+	 * @param Saveable $copy
+	 *
+	 */
+	public function ___cloned(Saveable $item, Saveable $copy) {
+		$this->log("Cloned '$item->name' to '$copy->name'", $item); 
+	}
+
+	/**
+	 * Enables use of $apivar('name') or wire()->apivar('name')
+	 * 
+	 * @param $key
+	 * @return Wire|null
+	 * 
+	 */
+	public function __invoke($key) {
+		return $this->get($key); 
+	}
+
+	/**
+	 * Save to activity log, if enabled in config
+	 *
+	 * @param $str
+	 * @param Saveable|null Item to log
+	 * @return WireLog
+	 *
+	 */
+	public function log($str, Saveable $item = null) {
+		$logs = $this->wire('config')->logs;
+		$name = $this->className(array('lowercase' => true)); 
+		if($logs && in_array($name, $logs)) {
+			if($item && strpos($str, "'$item->name'") === false) $str .= " '$item->name'";
+			return parent::___log($str, array('name' => $name));
+		}
+		return parent::___log(); 
+	}
+
+	/**
+	 * Record an error
+	 *
+	 * @param string $text
+	 * @param int|bool $flags See Notices::flags
+	 * @return $this
+	 *
+	 */
+	public function error($text, $flags = 0) {
+		$this->log($text); 
+		return parent::error($text, $flags); 
+	}
 
 
 }

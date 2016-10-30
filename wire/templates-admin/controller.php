@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * This file is just here for backwards compatibility

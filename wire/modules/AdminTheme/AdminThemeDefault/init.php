@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * This init file is called before ProcessWire starts rendering the page or executing the process
@@ -15,7 +15,7 @@ $markup['item_label_hidden'] = "\n\t\t<label class='InputfieldHeader InputfieldH
 $markup['item_content'] = "\n\t\t<div class='InputfieldContent'>\n{out}\n\t\t</div>";
 InputfieldWrapper::setMarkup($markup); 
 
-$class = InputfieldWrapper::getClasses();
+$classes = InputfieldWrapper::getClasses();
 $classes['item'] = "Inputfield {class} Inputfield_{name}";
 $classes['item_error'] = "InputfieldStateError";
 InputfieldWrapper::setClasses($classes); 

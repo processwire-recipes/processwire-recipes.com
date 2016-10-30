@@ -1,15 +1,15 @@
-<?php
+<?php 
 
 /**
  * ProcessWire TemplateFile
  *
  * A template file that will be loaded and executed as PHP, and it's output returned
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  * 
- * http://processwire.com
+ * @property bool $halt
+ * @method string render()
  *
  */
 
@@ -40,10 +40,36 @@ class TemplateFile extends WireData {
 	protected $savedDir;
 
 	/**
+	 * Directory to change to before rendering
+	 * 
+	 * If not set, it will change to the directory that the $filename is in
+	 * 
+	 * @var null|string
+	 * 
+	 */
+	protected $chdir = null;
+
+	/**
+	 * Saved ProcessWire instance
+	 * 
+	 * @var ProcessWire 
+	 * 
+	 */
+	protected $savedInstance; 
+	
+	/**
 	 * Throw exceptions when files don't exist?
 	 * 
 	 */
 	protected $throwExceptions = true;
+
+	/**
+	 * Whether or not the template file called $this->halt()
+	 * 
+	 * @var bool
+	 * 
+	 */
+	protected $halt = false;
 
 	/**
 	 * Variables that will be applied globally to this and all other TemplateFile instances
@@ -125,6 +151,19 @@ class TemplateFile extends WireData {
 		}
 	}
 
+
+	/**
+	 * Set the directory to temporarily change to during rendering
+	 * 
+	 * If not set, it changes to the directory that $filename is in. 
+	 * 
+	 * @param string $chdir
+	 * 
+	 */
+	public function setChdir($chdir) {
+		$this->chdir = $chdir; 
+	}
+
 	/**
 	 * Sets a variable to be globally accessable to all other TemplateFile instances
 	 *
@@ -158,22 +197,39 @@ class TemplateFile extends WireData {
 			return '';
 		}
 
+		// ensure that wire() functions in template file map to correct ProcessWire instance
+		$this->savedInstance = ProcessWire::getCurrentInstance();
+		ProcessWire::setCurrentInstance($this->wire());
+		
 		$this->savedDir = getcwd();	
 
-		chdir(dirname($this->filename)); 
+		if($this->chdir) {
+			chdir($this->chdir);
+		} else {
+			chdir(dirname($this->filename));
+		}
 		$fuel = array_merge($this->getArray(), self::$globals); // so that script can foreach all vars to see what's there
 
 		extract($fuel); 
 		ob_start();
-		foreach($this->prependFilename as $_filename) require($_filename);
-		require($this->filename); 
-		foreach($this->appendFilename as $_filename) require($_filename);
+		foreach($this->prependFilename as $_filename) {
+			if($this->halt) break;
+			require($_filename);
+		}
+		if(!$this->halt) $returnValue = require($this->filename); 
+		foreach($this->appendFilename as $_filename) {
+			if($this->halt) break;
+			require($_filename);
+		}
 		$out = "\n" . ob_get_contents() . "\n";
 		ob_end_clean();
 
 		if($this->savedDir) chdir($this->savedDir); 
-
-		return trim($out); 
+		ProcessWire::setCurrentInstance($this->savedInstance);
+		
+		$out = trim($out); 
+		if(!strlen($out) && !$this->halt && $returnValue && $returnValue !== 1) return $returnValue;
+		return $out;
 	}
 
 	/**
@@ -183,7 +239,7 @@ class TemplateFile extends WireData {
 	 *
 	 */
 	public function getArray() {
-		return array_merge($this->fuel->getArray(), parent::getArray()); 
+		return array_merge($this->wire('fuel')->getArray(), parent::getArray()); 
 	}
 
 	/**
@@ -197,9 +253,18 @@ class TemplateFile extends WireData {
 		if($property == 'filename') return $this->filename; 
 		if($property == 'appendFilename') return $this->appendFilename; 
 		if($property == 'prependFilename') return $this->prependFilename; 
+		if($property == 'halt') return $this->halt;
 		if($value = parent::get($property)) return $value; 
 		if(isset(self::$globals[$property])) return self::$globals[$property];
 		return null;
+	}
+	
+	public function set($property, $value) {
+		if($property == 'halt') {
+			$this->halt($value);
+			return $this;
+		}
+		return parent::set($property, $value);
 	}
 
 	/**
@@ -219,6 +284,24 @@ class TemplateFile extends WireData {
 	public function __toString() {
 		if(!$this->filename) return $this->className();
 		return $this->filename; 
+	}
+
+	/**
+	 * This method can be called by any template file to stop further render inclusions
+	 * 
+	 * This is preferable to doing an exit; or die() from your template file(s), as it only halts the rendering
+	 * of output and doesn't halt the rest of ProcessWire.  
+	 * 
+	 * Can be called from prepend/append files as well. 
+	 * 
+	 * USAGE from template file is: return $this->halt();
+	 * 
+	 * @param bool $halt
+	 * 
+	 */
+	protected function halt($halt = true) {
+		$this->halt = $halt ? true : false;
+		return $this;
 	}
 
 

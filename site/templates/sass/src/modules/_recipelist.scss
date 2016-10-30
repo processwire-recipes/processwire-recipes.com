@@ -6,6 +6,7 @@
 
 .module-recipelist {
 	@extend %clearfix;
+	line-height: 1.5;
 }
 
 .module-recipelist__list {
@@ -20,9 +21,9 @@
 
 .module-recipelist__listitem {
 	@extend %clearfix;
-	padding: 6px 6px 0 6px;
+	padding: .25em .5em;
 
-	&:nth-child(even) {
+	&:nth-child(odd) {
 		background: $lite_grey;
 	}
 }

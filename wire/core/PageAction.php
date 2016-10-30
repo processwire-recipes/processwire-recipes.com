@@ -1,9 +1,12 @@
-<?php
+<?php 
 
 /**
  * PageAction
  *
  * Base class for Page actions in ProcessWire
+ * 
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
  *
  */
 
@@ -30,7 +33,7 @@ abstract class PageAction extends WireAction implements Module {
 	 *
 	 */
 	public function getItemType() {
-		return 'Page';
+		return strlen(__NAMESPACE__) ? __NAMESPACE__ . '\\Page' : 'Page';
 	}
 
 	/**

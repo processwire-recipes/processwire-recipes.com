@@ -22,7 +22,22 @@ input:focus {
 .btn {
 	display: inline-block;
 	margin-top: 20px;
-	padding: 12px;
+	padding: .6667em;
 	border: 1px solid $blue;
 	text-decoration: none;
+}
+
+.sr-only {
+	clip: rect(1px 1px 1px 1px);
+	clip: rect(1px, 1px, 1px, 1px);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
+
+input[type="text"] {
+	-webkit-appearance: none;
+	border-radius: 0;
 }

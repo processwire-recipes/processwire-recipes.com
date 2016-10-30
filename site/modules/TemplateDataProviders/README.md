@@ -60,7 +60,7 @@ Class names for page data providers follow this convention: `{CamelCaseTemplateN
 Just use the camelcase notation of your template's name and add 'Page'. Dashes and underscores are used as separators for camelcasing.  
 Some Examples:  
 - home            -> class: HomePage | file: HomePage.php  
-- search_results  -> class: SearchResultPage | file: SearchResultPage.php  
+- search_results  -> class: SearchResultsPage | file: SearchResultsPage.php  
 - list-news       -> class: ListNewsPage | file: ListNewsPage.php  
 
 The file name must be named after the class name (case sensitive) and using a .php file extension.
@@ -80,7 +80,9 @@ By installing the Template Data Providers module you have access to a new page m
 Example: 
 In our home template we want to include a header chunk. We now could use this code  
 
-    $page->renderChunk('path/to/header.php'); // relative to wire('config')->paths->templates
+    $page->renderChunk('path/to/header.php'); // relative to wire('config')->paths->templates 
+
+***Hint: The file extension is optional. If no extension is given $config->templateExtension (defaults to .php) is used.***
 
 Now that's not much different to the classic way of including chunks. But now the **Template Data Providers** module looks for a `HeaderChunk` data provider and invokes it's `populate()` method to provide data for the header chunk that only lives within the chunk's scope.
 

@@ -1,52 +1,36 @@
+
 $(document).ready(function() {
 
 	/**
 	 * Setup a live change event for the delete links
 	 *
 	 */
+	
+	// not IE < 9
+	$(document).on('change', '.InputfieldFileDelete input', function() {
+		setInputfieldFileStatus($(this));
 
-	if($.browser.msie && $.browser.version < 9) {
-		
-		// $(".InputfieldFileDelete span.ui-icon").live("click", function() {
-		$(".InputfieldFileDelete").on("click", "span.ui-icon", function() {
-			
-			var input = $(this).prev('input'); 
-			if(input.is(":checked")){
-				input.removeAttr("checked");
-			} else {
-				input.attr({"checked":"checked"});	
-			}
-			
-			setInputfieldFileStatus(input);
-			
-		});
-		
-	} else {
-		// not IE < 9
-		// $(this).find(".InputfieldFileDelete input").live('change', function() {
-		$(document).on('change', '.InputfieldFileDelete input', function() {
-			setInputfieldFileStatus($(this));
-
-		}).on('dblclick', '.InputfieldFileDelete', function() {
-			// enable double-click to delete all
-			var $input = $(this).find('input'); 
-			var $items = $(this).parents('.InputfieldFileList').find('.InputfieldFileDelete input');
-			if($input.is(":checked")) $items.removeAttr('checked').change();
-				else $items.attr('checked', 'checked').change();
-			return false; 
-		}); 
-
-	}
+	}).on('dblclick', '.InputfieldFileDelete', function() {
+		// enable double-click to delete all
+		var $input = $(this).find('input'); 
+		var $items = $(this).parents('.InputfieldFileList').find('.InputfieldFileDelete input');
+		if($input.is(":checked")) $items.removeAttr('checked').change();
+			else $items.attr('checked', 'checked').change();
+		return false; 
+	}); 
 
 	function setInputfieldFileStatus($t) {
+		var $info = $t.parents('.InputfieldFileInfo');	
+		// collapsed=items that have no description or tags, so need no visible InputfieldFileData container
+		var collapsed = $t.closest('.InputfieldFile').hasClass('InputfieldItemListCollapse');
 		if($t.is(":checked")) {
 			// not an error, but we want to highlight it in the same manner
-			$t.parents(".InputfieldFileInfo").addClass("ui-state-error")
-				.siblings(".InputfieldFileData").slideUp("fast");
+			$info.addClass("ui-state-error");
+			if(!collapsed) $info.siblings(".InputfieldFileData").slideUp("fast");
 
 		} else {
-			$t.parents(".InputfieldFileInfo").removeClass("ui-state-error")
-				.siblings(".InputfieldFileData").slideDown("fast");
+			$info.removeClass("ui-state-error");
+			if(!collapsed) $info.siblings(".InputfieldFileData").slideDown("fast");
 		}	
 	}
 
@@ -59,7 +43,8 @@ $(document).ready(function() {
 		$fileLists.each(function() {
 			
 			var $this = $(this);
-			var qty = $this.children("li").size();
+			var qty = $this.children("li").length;
+			if($this.closest('.InputfieldRenderValueMode').length) return;
 			
 			var $inputfield = $this.closest('.Inputfield')
 		
@@ -86,7 +71,7 @@ $(document).ready(function() {
 					ui.item.children(".InputfieldFileInfo").removeClass("ui-state-highlight"); 
 					// Firefox has a habit of opening a lightbox popup after a lightbox trigger was used as a sort handle
 					// so we keep a 500ms class here to keep a handle on what was a lightbox trigger and what was a sort
-					$inputfield.addClass('InputfieldFileJustSorted'); 
+					$inputfield.addClass('InputfieldFileJustSorted InputfieldStateChanged'); 
 					setTimeout(function() { $inputfield.removeClass('InputfieldFileJustSorted'); }, 500); 
 				}
 			});
@@ -101,7 +86,6 @@ $(document).ready(function() {
 	/**
 	 * Initialize non-HTML5 uploads
 	 *
-	 */
 	function InitOldSchool() {
 		// $(".InputfieldFileUpload input[type=file]").live('change', function() {
 		$(document).on('change', '.InputfieldFileUpload input[type=file]', function() {
@@ -122,6 +106,53 @@ $(document).ready(function() {
 			$i.slideDown(); 
 		});
 	}
+	 */
+
+	function InitOldSchool() {
+		$("body").addClass("ie-no-drop"); // ??
+
+		$(document).on('change', '.InputfieldFileUpload input[type=file]', function() {
+			
+			var $t = $(this);
+			var $mask = $t.parent(".InputMask");
+
+			if($t.val().length > 1) {
+				$mask.addClass("ui-state-disabled");
+			} else {
+				$mask.removeClass("ui-state-disabled");
+			}
+
+			if($mask.next(".InputMask").length > 0) return; // not the last one
+		
+			var $inputfield = $t.closest('.InputfieldFile');
+			var $upload = $t.closest('.InputfieldFileUpload');
+			var $list = $inputfield.find('.InputfieldFileList');
+			var maxFiles = parseInt($upload.find('.InputfieldFileMaxFiles').val());
+			var numFiles = $list.children('li').length + $upload.find('input[type=file]').length + 1;
+			
+			if(maxFiles > 0 && numFiles >= maxFiles) return;
+
+			$upload.find(".InputMask").not(":last").each(function() {
+				var $m = $(this);
+				if($m.find("input[type=file]").val() < 1) $m.remove();
+			});
+		
+			// add another input
+			var $i = $mask.clone().removeClass("ui-state-disabled");
+			$i.children("input[type=file]").val('');
+			$i.insertAfter($mask);
+			$i.css('margin-left', '0.5em').removeClass('ui-state-active');
+		
+			// update file input to contain file name
+			var name = $t.val();
+			var pos = name.lastIndexOf('/');
+			if(pos === -1) pos = name.lastIndexOf('\\');
+			name = name.substring(pos+1);
+			$mask.find('.ui-button-text').text(name).prepend("<i class='fa fa-fw fa-file-o'></i>");
+			$mask.removeClass('ui-state-active');
+			
+		});
+	}
 
 	/**	
 	 * Initialize HTML5 uploads 
@@ -132,24 +163,37 @@ $(document).ready(function() {
 	 * and Robert Nyman (http://robertnyman.com/html5/fileapi-upload/fileapi-upload.html)
 	 * 	
 	 */
-	function InitHTML5() {
+	function InitHTML5($inputfield) {
 
-		$(".InputfieldFileUpload").closest('.ui-widget-content, .InputfieldContent').each(function(i) {
+		if($inputfield.length > 0) {
+			var $target = $inputfield.find(".InputfieldFileUpload"); // just one
+		} else {
+			var $target = $(".InputfieldFileUpload"); // all 
+		}
+		$target.closest('.InputfieldContent').each(function (i) {
+			if($(this).hasClass('InputfieldFileInit')) return;
+			initHTML5Item($(this), i);
+			$(this).addClass('InputfieldFileInit');
+		});
+			
+		function initHTML5Item($this, i) {
 
-			var $this = $(this); 
 			var $form = $this.parents('form'); 
-			var postUrl = $form.attr('action'); 
+			var $repeaterItem = $this.closest('.InputfieldRepeaterItem');
+			var postUrl = $repeaterItem.length ? $repeaterItem.attr('data-editUrl') : $form.attr('action');
+			postUrl += (postUrl.indexOf('?') > -1 ? '&' : '?') + 'InputfieldFileAjax=1';
 
 			// CSRF protection
 			var $postToken = $form.find('input._post_token'); 
 			var postTokenName = $postToken.attr('name');
 			var postTokenValue = $postToken.val();
+			var $uploadData = $this.find('.InputfieldFileUpload');
 
-			var fieldName = $this.find('p.InputfieldFileUpload').data('fieldname');
+			var fieldName = $uploadData.data('fieldname');
 			fieldName = fieldName.slice(0,-2);
 
-			var extensions = $this.find('p.InputfieldFileUpload').data('extensions').toLowerCase();
-			var maxFilesize = $this.find('p.InputfieldFileUpload').data('maxfilesize');
+			var extensions = $uploadData.data('extensions').toLowerCase();
+			var maxFilesize = $uploadData.data('maxfilesize');
 			
 			var filesUpload = $this.find("input[type=file]").get(0);
 			var dropArea = $this.get(0);
@@ -194,6 +238,7 @@ $(document).ready(function() {
 						if(completion > 4) {
 							$progressBarValue.html("<span>" + parseInt(completion) + "%</span>");
 						}
+						$('body').addClass('pw-uploading');
 						/*
 						// code for freezing progressbar during testing
 						$progressBarValue.width("60%");
@@ -277,16 +322,19 @@ $(document).ready(function() {
 					$progressItem.remove();
 					
 					if(doneTimer) clearTimeout(doneTimer); 
-					doneTimer = setTimeout(function() { 
+					doneTimer = setTimeout(function() {
+						$('body').removeClass('pw-uploading');
 						if(maxFiles != 1 && !$fileList.is('.ui-sortable')) initSortable($fileList); 
 						$fileList.trigger('AjaxUploadDone'); // for things like fancybox that need to be re-init'd
 					}, 500); 
 
 				}, false);
-				
+
 				// Here we go
 				xhr.open("POST", postUrl, true);
-				xhr.setRequestHeader("X-FILENAME", unescape(encodeURIComponent(file.name)));
+				//see:https://github.com/ryancramerdesign/ProcessWire/issues/1487
+				//xhr.setRequestHeader("X-FILENAME", unescape(encodeURIComponent(file.name)));
+				xhr.setRequestHeader("X-FILENAME", encodeURIComponent(file.name));
 				xhr.setRequestHeader("X-FIELDNAME", fieldName);
 				xhr.setRequestHeader("Content-Type", "application/octet-stream"); // fix issue 96-Pete
 				xhr.setRequestHeader("X-" + postTokenName, postTokenValue);
@@ -295,12 +343,20 @@ $(document).ready(function() {
 				
 				// Present file info and append it to the list of files
 				fileData = '' + 
-					"<span class='ui-icon ui-icon-arrowreturnthick-1-e' style='margin-left: 2px;'></span>" + 
+					"<i class='fa fa-fw fa-spin fa-spinner'></i> " + 
 					'<span class="InputfieldFileName">' + file.name + '</span>' + 
 					'<span class="InputfieldFileStats"> &bull; ' + parseInt(file.size / 1024, 10) + " kb</span>";
 				
 				$progressItem.find('p.ui-widget-header').html(fileData);
 				$fileList.append($progressItem);
+				var $inputfield = $fileList.closest('.Inputfield');
+				$inputfield.addClass('InputfieldStateChanged');
+				var numFiles = $inputfield.find('.InputfieldFileItem').length;
+				if(numFiles == 1) {
+					$inputfield.removeClass('InputfieldFileEmpty').removeClass('InputfieldFileMultiple').addClass('InputfieldFileSingle');
+				} else if(numFiles > 1) {
+					$inputfield.removeClass('InputfieldFileEmpty').removeClass('InputfieldFileSingle').addClass('InputfieldFileMultiple');
+				}
 			}
 			
 	
@@ -357,8 +413,8 @@ $(document).ready(function() {
 				evt.preventDefault();
 				evt.stopPropagation();
 			}, false);		
-		});
-	}
+		} // initHTML5Item
+	} // initHTML5
 
 	/**
 	 * MAIN
@@ -373,8 +429,9 @@ $(document).ready(function() {
 	 * #PageIDIndictator.size indicates PageEdit, which we're limiting AjaxUpload to since only ProcessPageEdit has the ajax handler
 	 * 
 	 */
-	if (window.File && window.FileList && window.FileReader && $("#PageIDIndicator").size() > 0) {  
-		InitHTML5();  
+	if (window.File && window.FileList && window.FileReader 
+		&& ($("#PageIDIndicator").length > 0 || $('.InputfieldAllowAjaxUpload').length > 0)) {  
+		InitHTML5('');  
 	} else {
 		InitOldSchool();
 	}
@@ -399,5 +456,12 @@ $(document).ready(function() {
 		resizeActive = true; 
 		setTimeout(windowResize, 1000); 
 	}).resize();
+	
+	//$(document).on('reloaded', '.InputfieldFileMultiple, .InputfieldFileSingle', function(event) {
+	$(document).on('reloaded', '.InputfieldHasFileList', function(event) {
+		initSortable($(this).find(".InputfieldFileList"));
+		InitHTML5($(this)); 
+		windowResize();
+	}); 
 	
 }); 

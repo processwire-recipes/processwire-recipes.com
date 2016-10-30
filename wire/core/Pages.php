@@ -1,47 +1,88 @@
-<?php
+<?php 
 
 /**
- * ProcessWire Pages
+ * ProcessWire Pages ($pages API variable)
  *
- * Manages Page instances, providing find, load, save and delete capabilities,
- * some of which are delegated to other classes but this provides the interface to them.
+ * Manages Page instances, providing find, load, save and delete capabilities, most of 
+ * which are delegated to other classes but this provides the common interface to them.
  *
  * This is the most used object in the ProcessWire API. 
  *
- * @TODO Move everything into delegate classes, leaving this as just the interface to them.
- * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
- *
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  * @link http://processwire.com/api/variables/pages/ Offical $pages Documentation
  * @link http://processwire.com/api/selectors/ Official Selectors Documentation
+ * 
+ * #pw-summary Enables loading and manipulation of Page objects, to and from the database. 
+ * 
+ * PROPERTIES
+ * ==========
+ * @property bool $cloning Whether or not a clone() operation is currently active #pw-internal
+ * @property bool $outputFormatting Current default output formatting mode. #pw-internal
+ * @property bool $autojoin Whether or not autojoin is allowed (typically true) #pw-internal
+ * 
+ * HOOKABLE METHODS
+ * ================
+ * @method PageArray find() find($selectorString, array $options = array()) Find and return all pages matching the given selector string. Returns a PageArray. #pw-group-retrieval
+ * @method bool save() save(Page $page) Save any changes made to the given $page. Same as : $page->save() Returns true on success. #pw-group-manipulation
+ * @method bool saveField() saveField(Page $page, $field) Save just the named field from $page. Same as: $page->save('field') #pw-group-manipulation
+ * @method bool trash() trash(Page $page, $save = true) Move a page to the trash. If you have already set the parent to somewhere in the trash, then this method won't attempt to set it again. #pw-group-manipulation
+ * @method bool restore(Page $page, $save = true) Restore a trashed page to its original location. #pw-group-manipulation
+ * @method int emptyTrash() Empty the trash and return number of pages deleted. #pw-group-manipulation
+ * @method bool delete() delete(Page $page, $recursive = false) Permanently delete a page and it's fields. Unlike trash(), pages deleted here are not restorable. If you attempt to delete a page with children, and don't specifically set the $recursive param to True, then this method will throw an exception. If a recursive delete fails for any reason, an exception will be thrown. #pw-group-manipulation
+ * @method Page|NullPage clone(Page $page, Page $parent = null, $recursive = true, $options = array()) Clone an entire page, it's assets and children and return it. #pw-group-manipulation
+ * @method Page|NullPage add($template, $parent, $name = '', array $values = array()) #pw-group-manipulation
+ * @method setupNew(Page $page) Setup new page that does not yet exist by populating some fields to it. #pw-internal
+ * @method string setupPageName(Page $page, array $options = []) Determine and populate a name for the given page. #pw-internal
+ * 
+ * METHODS PURELY FOR HOOKS
+ * ========================
+ * You can hook these methods, but you should not call them directly. 
+ * See the phpdoc in the actual methods for more details about arguments and additional properties that can be accessed.
+ * 
+ * @method saveReady(Page $page) Hook called just before a page is saved. 
+ * @method saved(Page $page, array $changes = array(), $values = array()) Hook called after a page is successfully saved. 
+ * @method added(Page $page) Hook called when a new page has been added. 
+ * @method moved(Page $page) Hook called when a page has been moved from one parent to another. 
+ * @method templateChanged(Page $page) Hook called when a page template has been changed. 
+ * @method trashed(Page $page) Hook called when a page has been moved to the trash. 
+ * @method restored(Page $page) Hook called when a page has been moved OUT of the trash. 
+ * @method deleteReady(Page $page) Hook called just before a page is deleted. 
+ * @method deleted(Page $page) Hook called after a page has been deleted. 
+ * @method cloneReady(Page $page, Page $copy) Hook called just before a page is cloned. 
+ * @method cloned(Page $page, Page $copy) Hook called after a page has been successfully cloned. 
+ * @method renamed(Page $page) Hook called after a page has been successfully renamed. 
+ * @method statusChangeReady(Page $page) Hook called when a page's status has changed and is about to be saved.
+ * @method statusChanged(Page $page) Hook called after a page status has been changed and saved. 
+ * @method publishReady(Page $page) Hook called just before an unpublished page is published. 
+ * @method published(Page $page) Hook called after an unpublished page has just been published. 
+ * @method unpublishReady(Page $page) Hook called just before a pubished page is unpublished. 
+ * @method unpublished(Page $page) Hook called after a published page has just been unpublished. 
+ * @method saveFieldReady(Page $page, Field $field) Hook called just before a saveField() method saves a page fied. 
+ * @method savedField(Page $page, Field $field) Hook called after saveField() method successfully executes. 
+ * @method found(PageArray $pages, array $details) Hook called at the end of a $pages->find().
  *
- * @method PageArray find() find($selectorString, array $options) Find and return all pages matching the given selector string. Returns a PageArray.
- * @method bool save() save(Page $page) Save any changes made to the given $page. Same as : $page->save() Returns true on success
- * @method bool saveField() saveField(Page $page, $field) Save just the named field from $page. Same as : $page->save('field')
- * @method bool trash() trash(Page $page, $save = true) Move a page to the trash. If you have already set the parent to somewhere in the trash, then this method won't attempt to set it again.
- * @method bool delete() delete(Page $page, $recursive = false) Permanently delete a page and it's fields. Unlike trash(), pages deleted here are not restorable. If you attempt to delete a page with children, and don't specifically set the $recursive param to True, then this method will throw an exception. If a recursive delete fails for any reason, an exception will be thrown.
- * @method Page|NullPage clone() clone(Page $page, Page $parent = null, $recursive = true, $options = array()) Clone an entire page, it's assets and children and return it.
+ * TO-DO
+ * =====
+ * @todo Add a getCopy method that does a getById($id, array('cache' => false) ?
+ * @todo Update saveField to accept array of field names as an option. 
  *
  */
 
 class Pages extends Wire {
 
 	/**
-	 * Instance of PageFinder (when cached)
-	 *
+	 * Max length for page name
+	 * 
 	 */
-	protected $pageFinder = null; 
+	const nameMaxLength = 128;
 
 	/**
-	 * Instance of Templates
-	 *
+	 * Default name for the root/home page
+	 * 
 	 */
-	protected $templates; 
+	const defaultRootName = 'home';
 
 	/**
 	 * Instance of PagesSortfields
@@ -50,22 +91,12 @@ class Pages extends Wire {
 	protected $sortfields;
 
 	/**
-	 * Pages that have been cached, indexed by ID
-	 *
+	 * Current debug state
+	 * 
+	 * @var bool
+	 * 
 	 */
-	protected $pageIdCache = array();
-
-	/**
-	 * Cached selector strings and the PageArray that was found.
-	 *
-	 */
-	protected $pageSelectorCache = array();
-
-	/**
-	 * Controls the outputFormatting state for pages that are loaded
-	 *
-	 */
-	protected $outputFormatting = false; 
+	protected $debug = false;
 
 	/**
 	 * Runtime debug log of Pages class activities, see getDebugLog()
@@ -74,574 +105,615 @@ class Pages extends Wire {
 	protected $debugLog = array();
 
 	/**
-	 * Shortcut to $config API var
-	 *
+	 * @var PagesLoader
+	 * 
 	 */
-	protected $config = null;
+	protected $loader;
 
 	/**
-	 * Are we currently cloning a page?
-	 * 
-	 * This is true only when the clone() method is currently in progress. 
-	 * 
-	 * @var bool
+	 * @var PagesEditor
 	 * 
 	 */
-	protected $cloning = false;
+	protected $editor;
 
 	/**
-	 * Name for autogenerated page names when fields to generate name aren't populated
-	 * 
-	 * @var string
+	 * @var PagesLoaderCache
 	 * 
 	 */
-	protected $untitledPageName = 'untitled';
+	protected $cacher;
+
+	/**
+	 * @var PagesTrash
+	 * 
+	 */
+	protected $trasher; 
 
 	/**
 	 * Create the Pages object
+	 * 
+	 * @param ProcessWire $wire
 	 *
 	 */
-	public function __construct() {
-		$this->config = $this->wire('config');
-		$this->templates = $this->wire('templates'); 
-		$this->sortfields = new PagesSortfields();
+	public function __construct(ProcessWire $wire) {
+		$this->setWire($wire);
+		$this->sortfields = $this->wire(new PagesSortfields());
+		$this->loader = $this->wire(new PagesLoader($this));
+		$this->cacher = $this->wire(new PagesLoaderCache($this));
+		$this->trasher = null;
+		$this->editor = null;
+		$this->debug = $wire->config->debug;
 	}
-
-	public function init() {
-		$this->getById($this->config->preloadPageIDs); 
-	}
-
-	/**
-	 * Given a Selector string, return the Page objects that match in a PageArray. 
-	 *
-	 * @param string $selectorString
-	 * @param array $options 
-	 *	- findOne: boolean - apply optimizations for finding a single page and include pages with 'hidden' status (default: false)
-	 *	- getTotal: boolean - whether to set returning PageArray's "total" property (default: true except when findOne=true)
-	 *	- loadPages: boolean - whether to populate the returned PageArray with found pages (default: true). 
-	 *		The only reason why you'd want to change this to false would be if you only needed the count details from 
-	 *		the PageArray: getTotal(), getStart(), getLimit, etc. This is intended as an optimization for Pages::count().
-	 *  - caller: string - optional name of calling function, for debugging purposes, i.e. pages.count
-	 * @return PageArray
-	 *
-	 */
-	public function ___find($selectorString, $options = array()) {
-
-		// TODO selector strings with runtime fields, like url=/about/contact/, possibly as plugins to PageFinder
-		
-		static $numCalls = 0;
-
-		$loadPages = true; 
-		$debug = $this->wire('config')->debug; 
-		if(array_key_exists('loadPages', $options)) $loadPages = (bool) $options['loadPages'];
-
-		if(!strlen($selectorString)) return new PageArray();
-		if($selectorString === '/' || $selectorString === 'path=/') $selectorString = 1;
-
-		if($selectorString[0] == '/') {
-			// if selector begins with a slash, then we'll assume it's referring to a path
-			$selectorString = "path=$selectorString";
-
-		} else if(strpos($selectorString, ",") === false && strpos($selectorString, "|") === false) {
-			// there is just one param. Lets see if we can find a shortcut. 
-			if(ctype_digit("$selectorString") || strpos($selectorString, "id=") === 0) {
-				// if selector is just a number, or a string like "id=123" then we're going to do a shortcut
-				$s = str_replace("id=", '', $selectorString); 
-				if(ctype_digit("$s")) {
-					$page = $this->getById(array((int) $s)); 
-					$pageArray = new PageArray();
-					$value = $page ? $pageArray->add($page) : $pageArray; 
-					if($debug) $this->debugLog('find', $selectorString . " [optimized]", $value); 
-					return $value; 
-				}
-			}
-		}
-
-		// see if this has been cached and return it if so
-		$pages = $this->getSelectorCache($selectorString, $options); 
-		if(!is_null($pages)) {
-			if($debug) $this->debugLog('find', $selectorString, $pages . ' [from-cache]'); 
-			return $pages; 
-		}
-
-		// check if this find has already been executed, and return the cached results if so
-		// if(null !== ($pages = $this->getSelectorCache($selectorString, $options))) return clone $pages; 
-
-		// if a specific parent wasn't requested, then we assume they don't want results with status >= Page::statusUnsearchable
-		// if(strpos($selectorString, 'parent_id') === false) $selectorString .= ", status<" . Page::statusUnsearchable; 
-
-		$numCalls++;
-		$caller = isset($options['caller']) ? $options['caller'] : 'pages.find';
-		$selectors = new Selectors($selectorString); 
-		$pageFinder = $this->getPageFinder();
-		if($debug) Debug::timer("$caller($selectorString)", true); 
-		$pagesInfo = $pageFinder->find($selectors, $options); 
-
-		// note that we save this pagination state here and set it at the end of this method
-		// because it's possible that more find operations could be executed as the pages are loaded
-		$total = $pageFinder->getTotal();
-		$limit = $pageFinder->getLimit();
-		$start = $pageFinder->getStart();
-
-		if($loadPages) { 
-			// parent_id is null unless a single parent was specified in the selectors
-			$parent_id = $pageFinder->getParentID();
-
-			$idsSorted = array(); 
-			$idsByTemplate = array();
-
-			// organize the pages by template ID
-			foreach($pagesInfo as $page) {
-				$tpl_id = $page['templates_id']; 
-				if(!isset($idsByTemplate[$tpl_id])) $idsByTemplate[$tpl_id] = array();
-				$idsByTemplate[$tpl_id][] = $page['id'];
-				$idsSorted[] = $page['id'];
-			}
-
-			if(count($idsByTemplate) > 1) {
-				// perform a load for each template, which results in unsorted pages
-				$unsortedPages = new PageArray();
-				foreach($idsByTemplate as $tpl_id => $ids) {
-					$unsortedPages->import($this->getById($ids, $this->templates->get($tpl_id), $parent_id)); 
-				}
-
-				// put pages back in the order that the selectorEngine returned them in, while double checking that the selector matches
-				$pages = new PageArray();
-				foreach($idsSorted as $id) {
-					foreach($unsortedPages as $page) { 
-						if($page->id == $id) {
-							$pages->add($page); 
-							break;
-						}
-					}
-				}
-			} else {
-				// there is only one template used, so no resorting is necessary	
-				$pages = new PageArray();
-				reset($idsByTemplate); 
-				$pages->import($this->getById($idsSorted, $this->templates->get(key($idsByTemplate)), $parent_id)); 
-			}
-
-		} else {
-			$pages = new PageArray();
-		}
-
-		$pages->setTotal($total); 
-		$pages->setLimit($limit); 
-		$pages->setStart($start); 
-		$pages->setSelectors($selectors); 
-		$pages->setTrackChanges(true);
-		
-		if($loadPages) $this->selectorCache($selectorString, $options, $pages); 
-		if($this->config->debug) $this->debugLog('find', $selectorString, $pages);
-		
-		if($debug) {
-			$count = $pages->count();
-			$note = ($count == $total ? $count : $count . "/$total") . " page(s)";
-			if($count) {
-				$note .= ": " . $pages->first()->path; 
-				if($count > 1) $note .= " ... " . $pages->last()->path;  
-			}
-			Debug::saveTimer("$caller($selectorString)", $note); 
-		}
 	
-		if($this->hasHook('found()')) $this->found($pages, array(
-			'pageFinder' => $pageFinder, 
-			'pagesInfo' => $pagesInfo, 
-			'options' => $options
-			));
+	/**
+	 * Initialize $pages API var by preloading some pages
+	 * 
+	 * #pw-internal
+	 *
+	 */
+	public function init() {
+		$this->loader->getById($this->wire('config')->preloadPageIDs);
+	}
 
-		return $pages; 
+	/****************************************************************************************************************
+	 * BASIC PUBLIC PAGES API METHODS
+	 * 
+	 */
+
+	/**
+	 * Count and return how many pages will match the given selector. 
+	 * 
+	 * If no selector provided, it returns count of all pages in site. 
+	 * 
+	 * ~~~~~~~~~
+	 * // Return count of how may pages in the site use the blog-post template
+	 * $numBlogPosts = $pages->count("template=blog-post");
+	 * ~~~~~~~~~
+	 * 
+	 * #pw-group-retrieval
+	 *
+	 * @param string|array|Selectors $selector Specify selector, or omit to retrieve a site-wide count.
+	 * @param array|string $options See $options for $pages->find().
+	 * @return int
+	 * @see Pages::find()
+	 *
+	 */
+	public function count($selector = '', $options = array()) {
+		return $this->loader->count($selector, $options);
 	}
 
 	/**
-	 * Like find() but returns only the first match as a Page object (not PageArray)
-	 *
-	 * @param string $selectorString
-	 * @param array $options See $options for Pages::find
-	 * @return Page|null
+	 * Given a Selector string, return the Page objects that match in a PageArray.
+	 * 
+	 * - This is one of the most commonly used API methods in ProcessWire. 
+	 * - If you only need to find one page, use the `Pages::get()` or `Pages::findOne()` method instead (and note the difference). 
+	 * - If you need to find a huge quantity of pages (like thousands) without limit or pagination, look at the `Pages::findMany()` method. 
+	 * 
+	 * ~~~~~
+	 * // Find all pages using template "building" with 25 or more floors
+	 * $skyscrapers = $pages->find("template=building, floors>=25");
+	 * ~~~~~
+	 * 
+	 * #pw-group-retrieval
+	 * 
+	 * @param string|int|array|Selectors $selector Specify selector (standard usage), but can also accept page ID or array of page IDs.
+	 * @param array|string $options One or more options that can modify certain behaviors. May be associative array or "key=value" selector string.
+	 *  - `findOne` (boolean): Apply optimizations for finding a single page.
+	 *  - `findAll` (boolean): Find all pages with no exculsions (same as include=all option).
+	 *  - `getTotal` (boolean): Whether to set returning PageArray's "total" property (default: true except when findOne=true).
+	 *  - `loadPages` (boolean): Whether to populate the returned PageArray with found pages (default: true). 
+	 *	   The only reason why you'd want to change this to false would be if you only needed the count details from 
+	 *	   the PageArray: getTotal(), getStart(), getLimit, etc. This is intended as an optimization for $pages->count().
+	 * 	   Does not apply if $selector argument is an array. 
+	 *  - `caller` (string): Optional name of calling function, for debugging purposes, i.e. pages.count
+	 *  - `include` (string): Optional inclusion mode of 'hidden', 'unpublished' or 'all'. Default=none. Typically you would specify this 
+	 *     directly in the selector string, so the option is mainly useful if your first argument is not a string. 
+	 *  - `stopBeforeID` (int): Stop loading pages once page matching this ID is found (default=0).
+	 *  - `startAfterID` (int): Start loading pages once page matching this ID is found (default=0). 
+	 *  - `lazy` (bool): Specify true to force lazy loading. This is the same as using the Pages::findMany() method (default=false).
+	 *  - `loadOptions` (array): Optional assoc array of options to pass to getById() load options.
+	 * @return PageArray Pages that matched the given selector.
+	 * 
+	 * Non-visible pages are excluded unless an "include=x" mode is specified in the selector
+	 * (where "x" is "hidden", "unpublished" or "all"). If "all" is specified, then non-accessible
+	 * pages (via access control) can also be included.
+	 * @see Pages::findOne(), Pages::findMany(), Pages::get()
 	 *
 	 */
-	public function findOne($selectorString, $options = array()) {
-		if(empty($selectorString)) return new NullPage();
-		if($page = $this->getCache($selectorString)) return $page; 
-		$defaults = array('findOne' => true, 'getTotal' => false, 'caller' => 'pages.get'); 
-		$options = array_merge($defaults, $options); 
-		$page = $this->find($selectorString, $options)->first();
-		if(!$page) $page = new NullPage();
-		return $page; 
+	public function ___find($selector, $options = array()) {
+		return $this->loader->find($selector, $options);
 	}
 
 	/**
-	 * Returns only the first match as a Page object (not PageArray).
+	 * Like find() but returns only the first match as a Page object (not PageArray).
+	 * 
+	 * This is functionally similar to the `get()` method except that its default behavior is to
+	 * filter for access control and hidden/unpublished/etc. states, in the same way that the
+	 * `find()` method does. You can add an `include=...` to your selector string to bypass. 
+	 * This method also accepts an `$options` array, whereas `get()` does not. 
+	 * 
+	 * ~~~~~~ 
+	 * // Find the newest page using the blog-post template
+	 * $blogPost = $pages->findOne("template=blog-post, sort=-created");
+	 * ~~~~~~
+	 * 
+	 * #pw-group-retrieval
 	 *
-	 * This is an alias of the findOne() method for syntactic convenience and consistency.
-	 * Using get() is preferred.
+	 * @param string|array|Selectors $selector Selector string, array or Selectors object
+	 * @param array|string $options See $options for $pages->find()
+	 * @return Page|NullPage Returns a Page on success, or a NullPage (having id=0) on failure
+	 * @since 3.0.0
+	 * @see Pages::get(), Pages::find(), Pages::findMany()
 	 *
-	 * @param string $selectorString
-	 * @return Page|NullPage Always returns a Page object, but will return NullPage (with id=0) when no match found
 	 */
-	public function get($selectorString) {
-		return $this->findOne($selectorString); 
+	public function findOne($selector, $options = array()) {
+		return $this->loader->findOne($selector, $options);
 	}
 
+	/**
+	 * Like find(), but with “lazy loading” to support giant result sets without running of memory.
+	 * 
+	 * When using this method, you can retrieve tens of thousands, or hundreds of thousands of pages 
+	 * or more, without needing a pagination "limit" in your selector. Individual pages are loaded
+	 * and unloaded in chunks as you iterate them, making it possible to iterate all pages without
+	 * running out of memory. This is useful for performing some kind of calculation on all pages or
+	 * other tasks like that. Note however that if you are building something from the result set
+	 * that consumes more memory for each page iterated (like concatening a string of page titles 
+	 * or something), then you could still run out of memory there. 
+	 *
+	 * The example below demonstrates use of this method. Note that attempting to do the same using
+	 * the regular `$pages->find()` would run out of memory, as it's unlikely the server would have
+	 * enough memory to store 20k pages in memory at once. 
+	 * 
+	 * ~~~~~
+	 * // Calculating a total from 20000 pages
+	 * $totalCost = 0;
+	 * $items = $pages->findMany("template=foo"); // 20000 pages
+	 * foreach($items as $item) {
+	 *   $totalCost += $item->cost; 
+	 * }
+	 * echo "Total cost is: $totalCost";
+	 * ~~~~~
+	 * 
+	 * #pw-group-retrieval
+	 *
+	 * @param $selector
+	 * @param array $options
+	 * @return PageArray
+	 * @since 3.0.19
+	 * @see Pages::find(), Pages::findOne()
+	 *
+	 */
+	public function findMany($selector, $options = array()) {
+		$debug = $this->debug;
+		if($debug) $this->debug(false);
+		$options['lazy'] = true;
+		$matches = $this->loader->find($selector, $options);
+		if($debug) $this->debug($debug);
+		return $matches;
+	}
+
+	/**
+	 * Returns the first page matching the given selector with no exclusions
+	 * 
+	 * Use this method when you need to retrieve a specific page without exclusions for access control or page status.
+	 * 
+	 * ~~~~~~
+	 * // Get a page by ID
+	 * $p = $pages->get(1234);
+	 * 
+	 * // Get a page by path
+	 * $p = $pages->get('/about/contact/');
+	 * 
+	 * // Get a random 'skyscraper' page by selector string
+	 * $p = $pages->get('template=skyscraper, sort=random'); 
+	 * ~~~~~~
+	 * 
+	 * #pw-group-retrieval
+	 *
+	 * @param string|array|Selectors|int $selector Selector string, array or Selectors object. May also be page path or ID. 
+	 * @return Page|NullPage Always returns a Page object, but will return NullPage (with id=0) when no match found.
+	 * @see Pages::findOne(), Pages::find()
+	 * 
+	 */
+	public function get($selector) {
+		return $this->loader->get($selector); 
+	}
+	
+	/**
+	 * Save a page object and its fields to database.
+	 *
+	 * If the page is new, it will be inserted. If existing, it will be updated.
+	 * This is the same as calling `$page->save()`. If you want to just save a particular field 
+	 * in a Page, use `$page->save($fieldName)` instead.
+	 * 
+	 * ~~~~~~
+	 * // Modify a page and save it
+	 * $p = $pages->get('/festivals/decatur/beer/'); 
+	 * $p->of(false); // turn off output formatting, if it's on
+	 * $p->title = "Decatur Beer Festival";
+	 * $p->summary = "Come and enjoy fine beer and good company at the Decatur Beer Festival.";
+	 * $pages->save($p); 
+	 * ~~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 *
+	 * @param Page $page Page object to save
+	 * @param array $options Optional array to modify default behavior, with one or more of the following:
+	 * - `uncacheAll` (boolean): Whether the memory cache should be cleared (default=true)
+	 * - `resetTrackChanges` (boolean): Whether the page's change tracking should be reset (default=true)
+	 * - `quiet` (boolean): When true, modified date and modified_users_id won't be updated (default=false)
+	 * - `adjustName` (boolean): Adjust page name to ensure it is unique within its parent (default=false)
+	 * - `forceID` (integer): Use this ID instead of an auto-assigned one (new page) or current ID (existing page)
+	 * - `ignoreFamily` (boolean): Bypass check of allowed family/parent settings when saving (default=false)
+	 * - `noHooks` (boolean): Prevent before/after save hooks (default=false), please also use $pages->___save() for call.
+	 * @return bool True on success, false on failure
+	 * @throws WireException
+	 * @see Page::save(), Pages::saveField()
+	 *
+	 */
+	public function ___save(Page $page, $options = array()) {
+		return $this->editor()->save($page, $options);
+	}
+
+	/**
+	 * Save only a field from the given page 
+	 *
+	 * This is the same as calling `$page->save($field)`.
+	 * 
+	 * ~~~~~
+	 * // Update the summary field on $page and save it
+	 * $page->summary = "Those who know do not speak. Those who speak do not know.";
+	 * $pages->saveField($page, 'summary');
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 *
+	 * @param Page $page Page to save
+	 * @param string|Field $field Field object or name (string)
+	 * @param array|string $options Optionally specify one or more of the following to modify default behavior:
+	 * - `quiet` (boolean): Specify true to bypass updating of modified user and time (default=false). 
+	 * - `noHooks` (boolean): Prevent before/after save hooks (default=false), please also use $pages->___saveField() for call.
+	 * @return bool True on success, false on failure
+	 * @throws WireException
+	 * @see Page::save(), Page::setAndSave(), Pages::save()
+	 *
+	 */
+	public function ___saveField(Page $page, $field, $options = array()) {
+		return $this->editor()->saveField($page, $field, $options);
+	}
+
+	/**
+	 * Add a new page using the given template and parent
+	 *
+	 * If no page "name" is specified, one will be automatically assigned. 
+	 * 
+	 * ~~~~~
+	 * // Add new page using 'skyscraper' template into Atlanta
+	 * $building = $pages->add('skyscraper', '/skyscrapers/atlanta/');
+	 * 
+	 * // Same as above, but with specifying a name/title as well:
+	 * $building = $pages->add('skyscraper', '/skyscrapers/atlanta/', 'Symphony Tower');
+	 * 
+	 * // Same as above, but with specifying several properties: 
+	 * $building = $pages->add('skyscraper', '/skyscrapers/atlanta/', [
+	 *   'title' => 'Symphony Tower',
+	 *   'summary' => 'A 41-story skyscraper located at 1180 Peachtree Street', 
+	 *   'height' => 657,
+	 *   'floors' => 41
+	 * ]);
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 *
+	 * @param string|Template $template Template name or Template object
+	 * @param string|int|Page $parent Parent path, ID or Page object
+	 * @param string $name Optional name or title of page. If none provided, one will be automatically assigned.
+	 * 	If you want to specify a different name and title then specify the $name argument, and $values['title'].
+	 * @param array $values Field values to assign to page (optional). If $name is omitted, this may also be 3rd param.
+	 * @return Page New page ready to populate. Note that this page has output formatting off.
+	 * @throws WireException When some criteria prevents the page from being saved.
+	 *
+	 */
+	public function ___add($template, $parent, $name = '', array $values = array()) {
+		return $this->editor()->add($template, $parent, $name, $values);
+	}
+	
+	/**
+	 * Clone entire page return it.
+	 * 
+	 * This also clones any file assets assets associated with the page. The clone is recursive
+	 * by default, cloning children (and so on) as well. To clone only the page without children,
+	 * specify false for the `$recursive` argument. 
+	 * 
+	 * Warning: this method can fail when recursive and cloning a page with huge amounts of 
+	 * children (or descendent family), and adequate resources (like memory or time limit) are
+	 * not available.
+	 * 
+	 * ~~~~~
+	 * // Clone the Westin Peachtree skyscraper page
+	 * $building = $pages->get('/skyscrapers/atlanta/westin-peachtree/');
+	 * $copy = $pages->clone($building); 
+	 * 
+	 * // Bonus: Now that the clone exists, lets move and rename it 
+	 * $copy->parent = '/skyscrapers/detroit/';
+	 * $copy->title = 'Renaissance Center';
+	 * $copy->name = 'renaissance-center';
+	 * $copy->save();
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 *
+	 * @param Page $page Page that you want to clone
+	 * @param Page|null $parent New parent, if different (default=null, which implies same parent)
+	 * @param bool $recursive Clone the children too? (default=true)
+	 * @param array|string $options Options that can be passed to modify default behavior of clone or save:
+	 *  - `forceID` (int): force a specific ID.
+	 *  - `set` (array): Array of properties to set to the clone (you can also do this later).
+	 *  - `recursionLevel` (int): recursion level, for internal use only.
+	 * @return Page|NullPage The newly cloned Page or a NullPage() with id=0 if unsuccessful.
+	 * @throws WireException|\Exception on fatal error
+	 *
+	 */
+	public function ___clone(Page $page, Page $parent = null, $recursive = true, $options = array()) {
+		return $this->editor()->_clone($page, $parent, $recursive, $options);
+	}
+
+	/**
+	 * Permanently delete a page, its fields and assets. 
+	 *
+	 * Unlike trash(), pages deleted here are not restorable. If you attempt to delete a page with children, 
+	 * and don't specifically set the `$recursive` argument to `true`, then this method will throw an exception. 
+	 * If a recursive delete fails for any reason, an exception will also will be thrown.
+	 * 
+	 * ~~~~~
+	 * // Delete a product page
+	 * $product = $pages->get('/products/foo-bar-widget/'); 
+	 * $pages->delete($product); 
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 *
+	 * @param Page $page Page to delete
+	 * @param bool $recursive If set to true, then this will attempt to delete all children too.
+	 * @param array $options Optional settings to change behavior (for the future, none currently in use).
+	 * @return bool|int Returns true (success), or integer of quantity deleted if recursive mode requested.
+	 * @throws WireException on fatal error
+	 * @see Pages::trash()
+	 * 
+	 */
+	public function ___delete(Page $page, $recursive = false, array $options = array()) {
+		return $this->editor()->delete($page, $recursive, $options);
+	}
+
+	/**
+	 * Move a page to the trash
+	 *
+	 * When a page is moved to the trash, it is in a "delete pending" state. Once trashed, the page can be either restored 
+	 * to its original location, or permanently deleted (when the trash is emptied). 
+	 * 
+	 * ~~~~~
+	 * // Trash a product page
+	 * $product = $pages->get('/products/foo-bar-widget/');
+	 * $pages->trash($product); 
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 * 
+	 * @param Page $page Page to trash
+	 * @param bool $save Set to false if you will perform your own save() call afterwards to complete the operation. Omit otherwise. Primarily for internal use.
+	 * @return bool Returns true on success, false on failure.
+	 * @throws WireException
+	 * @see Pages::restore(), Pages::emptyTrash(), Pages::delete()
+	 *
+	 */
+	public function ___trash(Page $page, $save = true) {
+		// If you have already set the parent to somewhere in the trash, then this method won't attempt to set it again.
+		return $this->trasher()->trash($page, $save);
+	}
+
+	/**
+	 * Restore a page in the trash back to its original location and state
+	 *
+	 * If you want to restore the page to some location other than its original location, set the `$page->parent` property
+	 * of the page to contain the location you want it to restore to. Otherwise the page will restore to its original location,
+	 * when possible to do so. 
+	 * 
+	 * ~~~~~
+	 * // Grab a page from the trash and restore it
+	 * $trashedPage = $pages->get(1234); 
+	 * $pages->restore($trashedPage); 
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 * 
+	 * @param Page $page Page that is in the trash that you want to restore
+	 * @param bool $save Set to false if you only want to prep the page for restore (i.e. you will save the page yourself later). Primarily for internal use.
+	 * @return bool True on success, false on failure.
+	 * @see Pages::trash()
+	 *
+	 */
+	public function ___restore(Page $page, $save = true) {
+		return $this->trasher()->restore($page, $save);
+	}
+
+	/****************************************************************************************************************
+	 * ADVANCED PAGES API METHODS (more for internal use)
+	 *
+	 */
+	
+	/**
+	 * Delete all pages in the trash
+	 *
+	 * Note that once the trash is emptied, pages in the trash are permanently deleted. 
+	 * This method populates error notices when there are errors deleting specific pages.
+	 * 
+	 * ~~~~~
+	 * // Empty the trash
+	 * $pages->emptyTrash();
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
+	 *
+	 * @return int Returns total number of pages deleted from trash.
+	 * 	This number is negative or 0 if not all pages could be deleted and error notices may be present.
+	 * @see Pages::trash(), Pages::restore()
+	 *
+	 */
+	public function ___emptyTrash() {
+		return $this->trasher()->emptyTrash();
+	}
+	
 	/**
 	 * Given an array or CSV string of Page IDs, return a PageArray 
-	 *
-	 * Optionally specify an $options array rather than a template for argument 2. When present, the 'template' and 'parent_id' arguments may be provided
-	 * in the given $options array. These options may be specified: 
 	 * 
-	 * - template: instance of Template (see $template argument)
-	 * - parent_id: integer (see $parent_id argument)
-	 * - getNumChildren: boolean, default=true. Specify false to disable retrieval and population of 'numChildren' Page property. 
+	 * Note that this method is primarily for internal use and most of the options available are specific to the needs
+	 * of core methods that utilize them. All pages loaded by ProcessWire pass through this method. 
 	 *
-	 * @param array|WireArray|string $ids Array of IDs or CSV string of IDs
+	 * Optionally specify an `$options` array rather than a template for argument 2. When present, the `template` and `parent_id` 
+	 * arguments may be provided in the given $options array. These options may be specified: 
+	 * 
+	 * **LOAD OPTIONS (argument 2 array):** 
+	 * 
+	 * - `cache` (boolean): Place loaded pages in memory cache? (default=true)
+	 * - `getFromCache` (boolean): Allow use of previously cached pages in memory (rather than re-loading it from DB)? (default=true)
+	 * - `template` (Template): Instance of Template, see the $template argument for details.
+	 * - `parent_id` (integer): Parent ID, see $parent_id argument for details.
+	 * - `getNumChildren` (boolean): Specify false to disable retrieval and population of 'numChildren' Page property. (default=true)
+	 * - `getOne` (boolean): Specify true to return just one Page object, rather than a PageArray. (default=false)
+	 * - `autojoin` (boolean): Allow use of autojoin option? (default=true)
+	 * - `joinFields` (array): Autojoin the field names specified in this array, regardless of field settings (requires autojoin=true). (default=empty)
+	 * - `joinSortfield` (boolean): Whether the 'sortfield' property will be joined to the page. (default=true)
+	 * - `findTemplates` (boolean): Determine which templates will be used (when no template specified) for more specific autojoins. (default=true)
+	 * - `pageClass` (string): Class to instantiate Page objects with. Leave blank to determine from template. (default=auto-detect)
+	 * - `pageArrayClass` (string): PageArray-derived class to store pages in (when 'getOne' is false). (default=PageArray)
+	 * - `page` (Page|null): Existing Page object to populate (also requires the getOne option to be true). (default=null)
+	 * 
+	 * **Use the `$options` array for potential speed optimizations:**
+	 * 
+	 * - Specify a `template` with your call, when possible, so that this method doesn't have to determine it separately. 
+	 * - Specify false for `getNumChildren` for potential speed optimization when you know for certain pages will not have children. 
+	 * - Specify false for `autojoin` for potential speed optimization in certain scenarios (can also be a bottleneck, so be sure to test). 
+	 * - Specify false for `joinSortfield` for potential speed optimization when you know the Page will not have children or won't need to know the order.
+	 * - Specify false for `findTemplates` so this method doesn't have to look them up. Potential speed optimization if you have few autojoin fields globally.
+	 * - Note that if you specify false for `findTemplates` the pageClass is assumed to be 'Page' unless you specify something different for the 'pageClass' option.
+	 * 
+	 * ~~~~~
+	 * // Retrieve pages by IDs in CSV string
+	 * $items = $pages->getById("1111,2222,3333");
+	 * 
+	 * // Retrieve pages by IDs in PHP array
+	 * $items = $pages->getById([1111,2222,3333]);
+	 * 
+	 * // Specify that retrieved pages are using template 'skyscraper' as an optimization
+	 * $items = $pages->getById([1111,2222,3333], $templates->get('skyscraper')); 
+	 * 
+	 * // Retrieve pages with $options array
+	 * $items = $pages->getById([1111,2222,3333], [
+	 *   'template' => $templates->get('skyscraper'), 
+	 *   'parent_id' => 1024
+	 * ]);
+	 * ~~~~~
+	 * 
+	 * #pw-advanced
+	 *
+	 * @param array|WireArray|string $_ids Array of Page IDs or CSV string of Page IDs.
 	 * @param Template|array|null $template Specify a template to make the load faster, because it won't have to attempt to join all possible fields... just those used by the template. 
 	 *	Optionally specify an $options array instead, see the method notes above. 
 	 * @param int|null $parent_id Specify a parent to make the load faster, as it reduces the possibility for full table scans. 
 	 *	This argument is ignored when an options array is supplied for the $template. 
-	 * @return PageArray
+	 * @return PageArray|Page Returns Page only if the 'getOne' option is specified, otherwise always returns a PageArray.
 	 * @throws WireException
+	 * 
+	 */
+	public function getById($_ids, $template = null, $parent_id = null) {
+		return $this->loader->getById($_ids, $template, $parent_id);
+	}
+	
+	/**
+	 * Given an ID, return a path to a page, without loading the actual page
+	 *
+	 * 1. Always returns path in default language, unless a language argument/option is specified.
+	 * 2. Path may be different from 'url' as it doesn't include the root URL at the beginning.
+	 * 3. In most cases, it's preferable to use `$page->path()` rather than this method. This method is
+	 *    here just for cases where a path is needed without loading the page.
+	 * 4. It's possible for there to be `Page::path()` hooks, and this method completely bypasses them,
+	 *    which is another reason not to use it unless you know such hooks aren't applicable to you.
+	 * 
+	 * ~~~~~
+	 * // Get the path for page having ID 1234
+	 * $path = $pages->getPath(1234);
+	 * echo "Path for page 1234 is: $path";
+	 * ~~~~~
+	 * 
+	 * #pw-advanced
+	 *
+	 * @param int|Page $id ID of the page you want the path to
+	 * @param null|array|Language|int|string $options Specify $options array or Language object, id or name. Allowed options include: 
+	 *  - `language` (int|string|anguage): To retrieve in non-default language, specify language object, ID or name (default=null)
+	 *  - `useCache` (bool): Allow pulling paths from already loaded pages? (default=true)
+	 *  - `usePagePaths` (bool): Allow pulling paths from PagePaths module, if installed? (default=true)
+	 * @return string Path to page or blank on error/not-found.
+	 * @since 3.0.6
+	 * @see Page::path()
 	 *
 	 */
-	public function getById($ids, $template = null, $parent_id = null) {
-	
-		$options = array(
-			'template' => null,
-			'parent_id' => null, 
-			'getNumChildren' => true
-			);
-
-		if(is_array($template)) {
-			// $template property specifies an array of options
-			$options = array_merge($options, $template); 
-			$template = $options['template'];
-			$parent_id = $options['parent_id'];
-		} else if(!is_null($template) && !$template instanceof Template) {
-			throw new WireException('getById argument 2 must be Template or $options array'); 
-		}
-
-		static $instanceID = 0;
-
-		$database = $this->wire('database');
-		$pages = new PageArray();
-		if(is_string($ids)) $ids = explode(",", $ids); 
-		if(!WireArray::iterable($ids) || !count($ids)) return $pages; 
-		if(is_object($ids)) $ids = $ids->getArray();
-		$loaded = array();
-
-		foreach($ids as $key => $id) {
-			$id = (int) $id; 
-			$ids[$key] = $id; 
-
-			if($page = $this->getCache($id)) {
-				$loaded[$id] = $page; 
-				unset($ids[$key]); 
-			
-			} else if(isset(Page::$loadingStack[$id])) {
-				// if the page is already in the process of being loaded, point to it rather than attempting to load again.
-				// the point of this is to avoid a possible infinite loop with autojoin fields referencing each other.
-				$loaded[$id] = Page::$loadingStack[$id];
-				// cache the pre-loaded version so that other pages referencing it point to this instance rather than loading again
-				$this->cache($loaded[$id]); 
-				unset($ids[$key]); 
-
-			} else {
-				$loaded[$id] = ''; // reserve the spot, in this order
-			}
-		}
-
-		$idCnt = count($ids); 
-		if(!$idCnt) return $pages->import($loaded); 
-		$idsByTemplate = array();
-
-		if(is_null($template)) {
-			
-			$sql = "SELECT id, templates_id FROM pages WHERE ";
-			if($idCnt == 1) $sql .= "id=" . (int) reset($ids); 
-				else $sql .= "id IN(" . implode(",", $ids) . ")";
-			
-			$query = $database->prepare($sql);
-			$result = $query->execute();
-			if($result) while($row = $query->fetch(PDO::FETCH_NUM)) {
-				list($id, $templates_id) = $row;
-				if(!isset($idsByTemplate[$templates_id])) $idsByTemplate[$templates_id] = array();
-				$idsByTemplate[$templates_id][] = $id;
-			}
-			$query->closeCursor();
-			
-		} else {
-			$idsByTemplate = array($template->id => $ids); 
-		}
-
-		foreach($idsByTemplate as $templates_id => $ids) { 
-
-			if(!$template || $template->id != $templates_id) $template = $this->wire('templates')->get($templates_id);
-			$fields = $template->fieldgroup; 
-			$query = new DatabaseQuerySelect();
-			$joinSortfield = empty($template->sortfield);
-
-			$query->select(
-				// note that "false AS isLoaded" triggers the setIsLoaded() function in Page intentionally
-				"false AS isLoaded, pages.templates_id AS templates_id, pages.*, " . 
-				($joinSortfield ? 'pages_sortfields.sortfield, ' : '') . 
-				($options['getNumChildren'] ? '(SELECT COUNT(*) FROM pages AS children WHERE children.parent_id=pages.id) AS numChildren' : '')
-				); 
-
-			if($joinSortfield) $query->leftjoin('pages_sortfields ON pages_sortfields.pages_id=pages.id'); 
-			$query->groupby('pages.id'); 
-	
-			foreach($fields as $field) { 
-				if(!($field->flags & Field::flagAutojoin)) continue; 
-				$table = $database->escapeTable($field->table); 
-				if(!$field->type || !$field->type->getLoadQueryAutojoin($field, $query)) continue; // autojoin not allowed
-				$query->leftjoin("$table ON $table.pages_id=pages.id"); // QA
-			}
-
-			if(!is_null($parent_id)) $query->where("pages.parent_id=" . (int) $parent_id); 
-
-			$query->where("pages.templates_id=" . ((int) $template->id)); // QA
-			$query->where("pages.id IN(" . implode(',', $ids) . ") "); // QA
-			$query->from("pages");
-			
-			$stmt = $query->execute(); 
-			if($stmt->errorCode() > 0) {
-				$errorInfo = $result->errorInfo();
-				throw new WireException($errorInfo[2]); 
-			}
-			
-			$class = ($template->pageClass && class_exists($template->pageClass)) ? $template->pageClass : 'Page';
-
-			while($page = $stmt->fetchObject($class, array($template))) {
-				$page->instanceID = ++$instanceID;
-				$page->setIsLoaded(true);
-				$page->setIsNew(false);
-				$page->setTrackChanges(true);
-				$page->setOutputFormatting($this->outputFormatting);
-				$loaded[$page->id] = $page;
-				$this->cache($page);
-			}
-			$stmt->closeCursor();
-
-			$template = null;
-		}
-
-		return $pages->import($loaded); 
+	public function getPath($id, $options = array()) {
+		return $this->loader->getPath($id, $options);
 	}
 
 	/**
-	 * Add a new page using the given template to the given parent
-	 * 
-	 * If no name is specified one will be assigned based on the current timestamp.
-	 * 
-	 * @param string|Template $template Template name or Template object
-	 * @param string|id|Page $parent Parent path, ID or Page object
-	 * @param string $name Optional name or title of page. If none provided, one will be automatically assigned based on microtime stamp.
-	 * 	If you want to specify a different name and title then specify the $name argument, and $values['title']. 
-	 * @param array $values Field values to assign to page (optional). If $name is ommitted, this may also be 3rd param. 
-	 * @return Page Returned page has output formatting off. 
-	 * @throws WireException When some criteria prevents the page from being saved. 
-	 * 
+	 * Alias of getPath method for backwards compatibility
+	 *
+	 * @param int $id
+	 * @return string
+	 *
 	 */
-	public function ___add($template, $parent, $name = '', array $values = array()) {
-	
-		// the $values may optionally be the 3rd argument
-		if(is_array($name)) {
-			$values = $name;
-			$name = isset($values['name']) ? $values['name'] : '';
-		}
-
-		if(!is_object($template)) {
-			$template = $this->wire('templates')->get($template); 	
-			if(!$template) throw new WireException("Unknown template"); 
-		}
-
-		$pageClass = $template->pageClass ? $template->pageClass : 'Page';	
-		
-		$page = new $pageClass();	
-		$page->template = $template;
-		$page->parent = $parent; 
-		
-		$exceptionMessage = "Unable to add new page using template '$template' and parent '{$page->parent->path}'."; 
-	
-		if(empty($values['title'])) {
-			// no title provided in $values, so we assume $name is $title
-			// but if no name is provided, then we default to: Untitled Page
-			if(!strlen($name)) $name = $this->_('Untitled Page');
-			// the setupNew method will convert $page->title to a unique $page->name
-			$page->title = $name; 
-			
-		} else {
-			// title was provided
-			$page->title = $values['title'];
-			// if name is provided we use it
-			// otherwise setupNew will take care of assign it from title
-			if(strlen($name)) $page->name = $name; 
-			unset($values['title']); 
-		}
-	
-		// save page before setting $values just in case any fieldtypes
-		// require the page to have an ID already (like file-based)
-		if(!$this->save($page)) throw new WireException($exceptionMessage); 
-	
-		// set field values, if provided
-		if(!empty($values)) {
-			unset($values['id'], $values['parent'], $values['template']); // fields that may not be set from this array
-			foreach($values as $key => $value) $page->set($key, $value);
-			$this->save($page); 
-		}
-		
-		return $page; 
-	}
-
-	/**
-	 * Given an ID return a path to a page, without loading the actual page
-	 *
- 	 * This is not meant to be public API: You should just use $pages->get($id)->path (or url) instead.
-	 * This is just a small optimization function for specific situations (like the PW bootstrap).
-	 * This function is not meant to be part of the public $pages API, as I think it only serves 
-	 * to confuse with $page->path(). However, if you ever have a situation where you need to get a page
- 	 * path and want to avoid loading the page for some reason, this function is your ticket.
-	 *
-	 * @param int $id ID of the page you want the URL to
-	 * @return string URL to page or blank on error
-	 *
- 	 */
 	public function _path($id) {
-
-		if(is_object($id) && $id instanceof Page) return $id->path();
-		$id = (int) $id;
-		if(!$id) return '';
-
-		// if page is already loaded, then get the path from it
-		if(isset($this->pageIdCache[$id])) return $this->pageIdCache[$id]->path();
-
-		if($this->modules->isInstalled('PagePaths')) {
-			$path = $this->modules->get('PagePaths')->getPath($id);
-			if(is_null($path)) $path = '';
-			return $path; 
-		}
-
-		$path = '';
-		$parent_id = $id; 
-		$database = $this->wire('database');
-		do {
-			$query = $database->prepare("SELECT parent_id, name FROM pages WHERE id=:parent_id"); // QA
-			$query->bindValue(":parent_id", (int) $parent_id, PDO::PARAM_INT); 
-			$query->execute();
-			list($parent_id, $name) = $query->fetch(PDO::FETCH_NUM);
-			$path = $name . '/' . $path;
-		} while($parent_id > 1); 
-
-		return '/' . ltrim($path, '/');
+		return $this->loader->getPath($id);
 	}
 
 	/**
-	 * Count and return how many pages will match the given selector string
+	 * Get a page by its path, similar to $pages->get('/path/to/page/') but with more options
 	 *
-	 * @param string $selectorString
-	 * @param array $options See $options in Pages::find 
-	 * @return int
+	 * 1. There are no exclusions for page status or access. If needed, you should validate access
+	 *    on any page returned from this method.
+	 * 2. In a multi-language environment, you must specify the `$useLanguages` option to be true, if you
+	 *    want a result for a $path that is (or might be) a multi-language path. Otherwise, multi-language
+	 *    paths will make this method return a NullPage (or 0 if getID option is true).
+	 * 3. Partial paths may also match, so long as the partial path is completely unique in the site.
+	 *    If you don't want that behavior, double check the path of the returned page.
+	 * 
+	 * ~~~~~
+	 * // Get a page by path 
+	 * $p = $pages->getByPath('/skyscrapers/atlanta/191-peachtree/');
+	 * 
+	 * // Now validate that the page we retrieved is valid
+	 * if($p->id && $p->viewable()) {
+	 *   // Page is valid to display
+	 * }
+	 * 
+	 * // Get a page by path with options
+	 * $p = $pages->getByPath('/products/widget/', [
+	 *   'useLanguages' => true, 
+	 *   'useHistory' => true
+	 * ]);
+	 * ~~~~~
+	 * 
+	 * #pw-advanced
+	 *
+	 * @param string $path Path of page you want to retrieve.
+	 * @param array|bool $options array of options (below), or specify boolean for $useLanguages option only.
+	 *  - `getID` (int): Specify true to just return the page ID (default=false).
+	 *  - `useLanguages` (bool): Specify true to allow retrieval by language-specific paths (default=false).
+	 *  - `useHistory` (bool): Allow use of previous paths used by the page, if PagePathHistory module is installed (default=false).
+	 * @return Page|int
+	 * @since 3.0.6
 	 *
 	 */
-	public function count($selectorString, array $options = array()) {
-		$options['loadPages'] = false; 
-		$options['getTotal'] = true; 
-		$options['caller'] = 'pages.count';
-		$options['returnVerbose'] = false;
-		//if($this->wire('config')->debug) $options['getTotalType'] = 'count'; // test count method when in debug mode
-		return $this->find("$selectorString, limit=1", $options)->getTotal();
+	public function getByPath($path, $options = array()) {
+		return $this->loader->getByPath($path, $options);
 	}
-
-	/**
-	 * Is the given page in a state where it can be saved?
-	 *
-	 * @param Page $page
-	 * @param string $reason Text containing the reason why it can't be saved (assuming it's not saveable)
-	 * @param string $fieldName Optional fieldname to limit check to. 
-	 * @param array $options Options array given to the original save method (optional)
-	 * @return bool True if saveable, False if not
-	 *
-	 */
-	public function isSaveable(Page $page, &$reason, $fieldName = '', array $options = array()) {
-
-		$saveable = false; 
-		$outputFormattingReason = "Call \$page->setOutputFormatting(false) before getting/setting values that will be modified and saved. "; 
-		$corrupted = array(); 
-		if($fieldName && is_object($fieldName)) $fieldName = $fieldName->name;
-		
-		if($page->is(Page::statusCorrupted)) {
-			$corruptedFields = $page->_statusCorruptedFields; 
-			foreach($page->getChanges() as $change) {
-				if(isset($corruptedFields[$change])) $corrupted[] = $change;
-			}
-			// if focused on a specific field... 
-			if($fieldName && !in_array($fieldName, $corrupted)) $corrupted = array();
-		}
-
-		if($page instanceof NullPage) $reason = "Pages of type NullPage are not saveable";
-			else if((!$page->parent || $page->parent instanceof NullPage) && $page->id !== 1) $reason = "It has no parent assigned"; 
-			else if(!$page->template) $reason = "It has no template assigned"; 
-			else if(!strlen(trim($page->name)) && $page->id != 1) $reason = "It has an empty 'name' field"; 
-			else if(count($corrupted)) $reason = $outputFormattingReason . " [Page::statusCorrupted] fields: " . implode(', ', $corrupted);
-			else if($page->id == 1 && !$page->template->useRoles) $reason = "Selected homepage template cannot be used because it does not define access.";
-			else if($page->id == 1 && !$page->template->hasRole('guest')) $reason = "Selected homepage template cannot be used because it does not have the required 'guest' role in it's access settings.";
-			else $saveable = true; 
-
-		// check if they could corrupt a field by saving
-		if($saveable && $page->outputFormatting) {
-			// iternate through recorded changes to see if any custom fields involved
-			foreach($page->getChanges() as $change) {
-				if($fieldName && $change != $fieldName) continue; 
-				if($page->template->fieldgroup->getField($change) !== null) {
-					$reason = $outputFormattingReason . " [$change]";	
-					$saveable = false;
-					break;
-				}
-			}
-			// iterate through already-loaded data to see if any are objects that have changed
-			if($saveable) foreach($page->getArray() as $key => $value) {
-				if($fieldName && $key != $fieldName) continue; 
-				if(!$page->template->fieldgroup->getField($key)) continue; 
-				if(is_object($value) && $value instanceof Wire && $value->isChanged()) {
-					$reason = $outputFormattingReason . " [$key]";
-					$saveable = false; 
-					break;
-				}
-			}
-		}
-
-		// FAMILY CHECKS
-		// check for a parent change and whether it is allowed
-		if($saveable && $page->parentPrevious && $page->parentPrevious->id != $page->parent->id && empty($options['ignoreFamily'])) {
-			// page was moved
-			if($page->template->noMove && ($page->is(Page::statusSystem) || $page->is(Page::statusSystemID) || !$page->isTrash())) {
-				// make sure the page's template allows moves. only move laways allowed is to the trash, unless page has system status
-				$saveable = false;
-				$reason = "Pages using template '{$page->template}' are not moveable (template::noMove)";
-
-			} else if($page->parent->template->noChildren) {
-				$saveable = false;
-				$reason = "Chosen parent '{$page->parent->path}' uses template that does not allow children.";
-
-			} else if($page->parent->id && $page->parent->id != $this->config->trashPageID && count($page->parent->template->childTemplates) && !in_array($page->template->id, $page->parent->template->childTemplates)) {
-				// make sure the new parent's template allows pages with this template
-				$saveable = false;
-				$reason = "Can't move '{$page->name}' because Template '{$page->parent->template}' used by '{$page->parent->path}' doesn't allow children with this template.";
-
-			} else if(count($page->template->parentTemplates) && $page->parent->id != $this->config->trashPageID && !in_array($page->parent->template->id, $page->template->parentTemplates)) {
-				$saveable = false;
-				$reason = "Can't move '{$page->name}' because Template '{$page->parent->template}' used by '{$page->parent->path}' is not allowed by template '{$page->template->name}'.";
-
-			} else if(count($page->parent->children("name={$page->name}, id!=$page->id, include=all"))) { 
-				$saveable = false;
-				$reason = "Chosen parent '{$page->parent->path}' already has a page named '{$page->name}'"; 
-			}
-		}
-
-		return $saveable; 
-	}
-
+	
 	/**
 	 * Auto-populate some fields for a new page that does not yet exist
 	 *
@@ -649,41 +721,24 @@ class Pages extends Wire {
 	 * - Sets up a unique page->name based on the format or title if one isn't provided already. 
 	 * - Assigns a 'sort' value'. 
 	 * 
+	 * #pw-internal
+	 * 
 	 * @param Page $page
 	 *
 	 */
 	public function ___setupNew(Page $page) {
-
-		if(!$page->parent()->id) {
-			// auto-assign a parent, if we can find one in family settings
-
-			$parentTemplates = $page->template->parentTemplates; 
-			$parent = null;
-
-			if(!empty($parentTemplates)) {
-				$idStr = implode('|', $parentTemplates); 
-				$parent = $this->get("include=hidden, template=$idStr"); 
-				if(!$parent->id) $parent = $this->get("include=all, template=$idStr"); 
-			}
-
-			if($parent->id) $page->parent = $parent; 
-		}
-
-		if(!strlen($page->name)) $this->setupPageName($page); 
-
-		if($page->sort < 0) {
-			// auto assign a sort
-			$page->sort = $page->parent->numChildren();
-		}
+		return $this->editor()->setupNew($page);
 	}
 
 	/**
-	 * Auto-assign a page name to this page
+	 * Auto-assign a page name to the given page
 	 * 
 	 * Typically this would be used only if page had no name or if it had a temporary untitled name.
 	 * 
 	 * Page will be populated with the name given. This method will not populate names to pages that
 	 * already have a name, unless the name is "untitled"
+	 * 
+	 * #pw-internal
 	 * 
 	 * @param Page $page
 	 * @param array $options 
@@ -692,780 +747,73 @@ class Pages extends Wire {
 	 * 
 	 */
 	public function ___setupPageName(Page $page, array $options = array()) {
-		
-		$defaults = array(
-			'format' => '', 
-			);
-		$options = array_merge($defaults, $options); 
-		$format = $options['format']; 
-		
-		if(strlen($page->name)) {
-			// make sure page starts with "untitled" or "untitled-"
-			if($page->name != $this->untitledPageName && strpos($page->name, "$this->untitledPageName-") !== 0) {
-				// page already has a name and it's not a temporary/untitled one
-				// so we do nothing
-				return '';
-			}
-			// page starts with our untitled name, but is it in the exact format we use?
-			if($page->name != $this->untitledPageName) {
-				$parts = explode('-', $page->name);
-				array_shift($parts); // shift off 'untitled';
-				$parts = implode('', $parts); // put remaining back together
-				// if we were left with something other than digits, 
-				// this is not an auto-generated name, so leave as-is
-				if(!ctype_digit($parts)) return '';
-			}
-		}
-
-		if(!strlen($format)) $format = $page->parent()->template->childNameFormat;
-		if(!strlen($format)) {
-			if(strlen($page->title)) {
-				// default format is title
-				$format = 'title';
-			} else {
-				// if page has no title, default format is date
-				$format = 'Y-m-d H:i:s';
-			}
-		}
-		
-		$pageName = '';
-		
-		if(strlen($format)) {
-			// @todo add option to auto-gen name from any page property/field
-
-			if($format == 'title') {
-				if(strlen($page->title)) $pageName = $page->title;
-					else $pageName = $this->untitledPageName;
-				
-			} else if(!ctype_alnum($format) && !preg_match('/^[-_a-zA-Z0-9]+$/', $format)) {
-				// it is a date format
-				$pageName = date($format);
-			} else {
-				
-				// predefined format
-				$pageName = $format;
-			}
-
-		} else if(strlen($page->title)) {
-			$pageName = $page->title;
-
-		} else {
-			// no name will be assigned
-		}
-		
-		if($pageName == $this->untitledPageName && strpos($page->name, $this->untitledPageName) === 0) {
-			// page already has untitled name, and there's no need to re-assign the untitled name
-			return '';
-		}
-
-		$name = '';
-		if(strlen($pageName)) {
-			// make the name unique
-
-			$pageName = $this->wire('sanitizer')->pageName($pageName, Sanitizer::translate);
-			$numChildren = $page->parent->numChildren();
-			$n = 0;
-
-			do {
-				$name = $pageName;
-				if($n > 0) $name .= "-" . ($numChildren+$n);
-				$child = $page->parent->child("name=$name, include=all"); // see if another page already has the same name
-				$n++;
-			} while($child->id);
-
-			$page->name = $name;
-			$page->set('_hasAutogenName', true); // for savePageQuery, provides adjustName behavior for new pages
-		}
-		
-		return $name;
+		return $this->editor()->setupPageName($page, $options);
 	}
-	
+
 	/**
-	 * Save a page object and it's fields to database. 
+	 * Update page modification time to now (or the given modification time)
+	 * 
+	 * This behaves essentially the same as the unix `touch` command, but for ProcessWire pages. 
+	 * 
+	 * ~~~~~
+	 * // Touch the current $page to current date/time
+	 * $pages->touch($page);
+	 * 
+	 * // Touch the current $page and set modification date to 2016/10/24
+	 * $pages->touch($page, "2016-10-24 00:00"); 
+	 * 
+	 * // Touch all "skyscraper" pages in "Atlanta" to current date/time
+	 * $skyscrapers = $pages->find("template=skyscraper, parent=/cities/atlanta/"); 
+	 * $pages->touch($skyscrapers); 
+	 * ~~~~~
+	 * 
+	 * #pw-group-manipulation
 	 *
-	 * If the page is new, it will be inserted. If existing, it will be updated. 
-	 *
-	 * This is the same as calling $page->save()
-	 *
-	 * If you want to just save a particular field in a Page, use $page->save($fieldName) instead. 
-	 *
-	 * @param Page $page
-	 * @param array $options Optional array with the following optional elements:
-	 * 		'uncacheAll' => boolean - Whether the memory cache should be cleared (default=true)
-	 * 		'resetTrackChanges' => boolean - Whether the page's change tracking should be reset (default=true)
-	 * 		'quiet' => boolean - When true, modified date and modified_users_id won't be updated (default=false)
-	 *		'adjustName' => boolean - Adjust page name to ensure it is unique within its parent (default=false)
-	 * 		'forceID' => integer - use this ID instead of an auto-assigned on (new page) or current ID (existing page)
-	 * 		'ignoreFamily' => boolean - Bypass check of allowed family/parent settings when saving (default=false)
-	 * @return bool True on success, false on failure
-	 * @throws WireException
+	 * @param Page|PageArray|array $pages May be Page, PageArray or array of page IDs (integers).
+	 * @param null|int|string $modified Omit to update to now, or specify unix timestamp or strtotime() recognized time string
+	 * @throws WireException if given invalid format for $modified argument or failed database query
+	 * @return bool True on success, false on fail
+	 * @since 3.0.0
 	 *
 	 */
-	public function ___save(Page $page, $options = array()) {
-
-		$defaultOptions = array(
-			'uncacheAll' => true,
-			'resetTrackChanges' => true,
-			'adjustName' => false, 
-			'forceID' => 0,
-			'ignoreFamily' => false, 
-			);
-	
-		$options = array_merge($defaultOptions, $options); 
-		$user = $this->wire('user');
-		$languages = $this->wire('languages'); 
-		$language = null;
-
-		// if language support active, switch to default language so that saved fields and hooks don't need to be aware of language
-		if($languages && $page->id != $user->id) {
-			$language = $user->language && $user->language->id ? $user->language : null; 
-			if($language) $user->language = $languages->getDefault();
-		} 
-
-		$reason = '';
-		$isNew = $page->isNew();
-		if($isNew) $this->setupNew($page);
-
-		if(!$this->isSaveable($page, $reason, '', $options)) {
-			if($language) $user->language = $language;
-			throw new WireException("Can't save page {$page->id}: {$page->path}: $reason"); 
-		}
-
-		if($page->is(Page::statusUnpublished) && $page->template->noUnpublish) $page->removeStatus(Page::statusUnpublished); 
-
-		if($page->parentPrevious) {
-			if($page->isTrash() && !$page->parentPrevious->isTrash()) $this->trash($page, false); 
-				else if($page->parentPrevious->isTrash() && !$page->parent->isTrash()) $this->restore($page, false); 
-		}
-
-		if(!$this->savePageQuery($page, $options)) return false;
-		$result = $this->savePageFinish($page, $isNew, $options);
-		if($language) $user->language = $language; // restore language
-		return $result;
+	public function ___touch($pages, $modified = null) {
+		return $this->editor()->touch($pages, $modified);
 	}
-
+	
 	/**
-	 * Execute query to save to pages table
+	 * Is the given page in a state where it can be saved from the API?
+	 *
+	 * Note: this does not account for user permission checking.
+	 * It only checks if the page is in a state to be saveable via the API. 
 	 * 
-	 * triggers hooks: saveReady, statusChangeReady (when status changed)
+	 * #pw-internal
 	 * 
 	 * @param Page $page
-	 * @param array $options
-	 * @return bool
-	 * @throws Exception
+	 * @param string $reason Text containing the reason why it can't be saved (assuming it's not saveable)
+	 * @param string|Field $fieldName Optional fieldname to limit check to.
+	 * @param array $options Options array given to the original save method (optional)
+	 * @return bool True if saveable, False if not
+	 *
+	 */
+	public function isSaveable(Page $page, &$reason, $fieldName = '', array $options = array()) {
+		return $this->editor()->isSaveable($page, $reason, $fieldName, $options);
+	}
+	
+	/**
+	 * Is the given page deleteable from the API?
+	 *
+	 * Note: this does not account for user permission checking. 
+	 * It only checks if the page is in a state to be deleteable via the API. 
 	 * 
-	 */
-	protected function savePageQuery(Page $page, array $options) {
-	
-		$isNew = $page->isNew();		
-		$database = $this->wire('database');
-		$user = $this->wire('user');
-		$userID = $user ? $user->id : $this->config->superUserPageID;
-		if(!$page->created_users_id) $page->created_users_id = $userID;
-		if($page->isChanged('status')) $this->statusChangeReady($page); 
-		$extraData = $this->saveReady($page);
-		$sql = '';
-	
-		if(strpos($page->name, $this->untitledPageName) === 0) $this->setupPageName($page); 
-
-		$data = array(
-			'parent_id' => (int) $page->parent_id,
-			'templates_id' => (int) $page->template->id,
-			'name' => $page->name,
-			'status' => (int) $page->status,
-			'sort' =>  ($page->sort > -1 ? (int) $page->sort : 0)
-			);
-
-		if(is_array($extraData)) foreach($extraData as $column => $value) {
-			$column = $database->escapeCol($column);
-			$data[$column] = (strtoupper($value) === 'NULL' ? NULL : $value);
-		}
-
-		if($isNew) {
-			if($page->id) $data['id'] = (int) $page->id;
-			$data['created_users_id'] = (int) $userID;
-		}
-		
-		if($options['forceID']) $data['id'] = (int) $options['forceID'];
-
-		if($page->template->allowChangeUser) {
-			$data['created_users_id'] = (int) $page->created_users_id;
-		}
-		
-		if(empty($options['quiet'])) {
-			$sql = 'modified=NOW()';
-			$data['modified_users_id'] = (int) $userID; 
-		} else {
-			// quiet option, use existing values already populated to page, when present
-			$data['modified_users_id'] = (int) ($page->modified_users_id ? $page->modified_users_id : $userID); 
-			$data['created_users_id'] = (int) ($page->created_users_id ? $page->created_users_id : $userID); 
-			if($page->modified > 0) $data['modified'] = date('Y-m-d H:i:s', $page->modified); 
-				else if($isNew) $sql = 'modified=NOW()';
-			if(!$isNew && $page->created > 0) $data['created'] = date('Y-m-d H:i:s', $page->created); 
-		}
-		
-		if(isset($data['modified_users_id'])) $page->modified_users_id = $data['modified_users_id'];
-		if(isset($data['created_users_id'])) $page->created_users_id = $data['created_users_id']; 
-		
-		foreach($data as $column => $value) {
-			$sql .= ", $column=" . (is_null($value) ? "NULL" : ":$column");
-		}
-		
-		$sql = trim($sql, ", "); 
-
-		if($isNew) {
-			$query = $database->prepare("INSERT INTO pages SET $sql, created=NOW()");
-		}  else {
-			$query = $database->prepare("UPDATE pages SET $sql WHERE id=:page_id");
-			$query->bindValue(":page_id", (int) $page->id, PDO::PARAM_INT);
-		}
-
-		foreach($data as $column => $value) {
-			if(is_null($value)) continue; // already bound above
-			$query->bindValue(":$column", $value, is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
-		}
-
-		$n = 0;
-
-		do { 
-			$result = false; 
-			$errorCode = 0;
-
-			try { 	
-				$result = false;
-				$result = $query->execute();
-
-			} catch(Exception $e) {
-
-				$errorCode = $e->getCode();
-
-				// while setupNew() already attempts to uniqify a page name with an incrementing
-				// number, there is a chance that two processes running at once might end up with
-				// the same number, so we account for the possibility here by re-trying queries
-				// that trigger duplicate-entry exceptions 
-
-				if($errorCode == 23000 && ($page->_hasAutogenName || $options['adjustName'])) {
-					// Integrity constraint violation: 1062 Duplicate entry 'background-3552' for key 'name3894_parent_id'
-					// attempt to re-generate page name
-					$nameField = 'name';
-					// account for the duplicate possibly being a multi-language name field
-					if($this->wire('languages') && preg_match('/\b(name\d*)_parent_id\b/', $e->getMessage(), $matches)) $nameField = $matches[1]; 
-					// get either 'name' or 'name123' (where 123 is language ID)
-					$pageName = $page->$nameField;
-					// determine if current name format already has a trailing number
-					if(preg_match('/^(.+?)-(\d+)$/', $pageName, $matches)) {
-						// page already has a trailing number
-						$n = $matches[2]; 
-						$pageName = $matches[1]; 
-					}
-					$page->name = $pageName . '-' . (++$n); 
-					$query->bindValue(":$nameField", $page->name); 
-					
-				} else {
-					// a different exception that we don't catch, so re-throw it
-					throw $e;
-				}
-			}
-
-		} while($errorCode == 23000); 
-
-		if($result && ($isNew || !$page->id)) $page->id = $database->lastInsertId();
-		if($options['forceID']) $page->id = (int) $options['forceID'];
-		
-		return $result; 
-	}
-
-	/**
-	 * Save individual Page fields and supporting actions
-	 * 
-	 * triggers hooks: saved, added, moved, renamed, templateChanged
-	 * 
-	 * @param Page $page
-	 * @param bool $isNew
-	 * @param array $options
-	 * @return bool
-	 * 
-	 */
-	protected function savePageFinish(Page $page, $isNew, array $options) {
-		$changes = $page->getChanges();
-		$changesValues = $page->getChanges(true); 
-	
-		// update children counts for current/previous parent
-		if($isNew) {
-			$page->parent->numChildren++;
-		} else {
-			if($page->parentPrevious && $page->parentPrevious->id != $page->parent->id) {
-				$page->parentPrevious->numChildren--;
-				$page->parent->numChildren++;
-			}
-		}
-
-		// if page hasn't changed, don't continue further
-		if(!$page->isChanged() && !$isNew) {
-			$this->debugLog('save', '[not-changed]', true);
-			$this->saved($page, array());
-			return true;
-		}
-		
-		// if page has a files path (or might have previously), trigger filesManager's save
-		if(PagefilesManager::hasPath($page)) $page->filesManager->save();
-
-		// disable outputFormatting and save state
-		$of = $page->of();
-		$page->of(false);
-	
-		// when a page is statusCorrupted, it records what fields are corrupted in _statusCorruptedFields array
-		$corruptedFields = $page->is(Page::statusCorrupted) ? $page->_statusCorruptedFields : array();
-
-		// save each individual Fieldtype data in the fields_* tables
-		foreach($page->fieldgroup as $field) {
-			if(isset($corruptedFields[$field->name])) continue; // don't even attempt save of corrupted field
-			if(!$field->type) continue;
-			try {
-				$field->type->savePageField($page, $field);
-			} catch(Exception $e) {
-				$this->error(sprintf($this->_('Error saving field "%s"'), $field->name) . ' - ' . $e->getMessage()); 
-			}
-		}
-
-		// return outputFormatting state
-		$page->of($of);
-
-		if(empty($page->template->sortfield)) $this->sortfields->save($page);
-		if($options['resetTrackChanges']) $page->resetTrackChanges();
-	
-		// determine whether we'll trigger the added() hook
-		if($isNew) {
-			$page->setIsNew(false);
-			$triggerAddedPage = $page;
-		} else $triggerAddedPage = null;
-
-		// check for template changes
-		if($page->templatePrevious && $page->templatePrevious->id != $page->template->id) {
-			// the template was changed, so we may have data in the DB that is no longer applicable
-			// find unused data and delete it
-			foreach($page->templatePrevious->fieldgroup as $field) {
-				if($page->template->fieldgroup->has($field)) continue;
-				$field->type->deletePageField($page, $field);
-				$this->message("Deleted field '$field' on page {$page->url}", Notice::debug);
-			}
-		}
-
-		if($options['uncacheAll']) $this->uncacheAll($page);
-
-		// determine whether the pages_access table needs to be updated so that pages->find()
-		// operations can be access controlled. 
-		if($isNew || $page->parentPrevious || $page->templatePrevious) new PagesAccess($page);
-
-		// lastly determine whether the pages_parents table needs to be updated for the find() cache
-		// and call upon $this->saveParents where appropriate. 
-		if($page->parentPrevious && $page->numChildren > 0) {
-			// page is moved and it has children
-			$this->saveParents($page->id, $page->numChildren);
-			if($page->parent->numChildren == 1) $this->saveParents($page->parent_id, $page->parent->numChildren);
-
-		} else if(($page->parentPrevious && $page->parent->numChildren == 1) ||
-			($isNew && $page->parent->numChildren == 1) ||
-			($page->forceSaveParents)) {
-			// page is moved and is the first child of it's new parent
-			// OR page is NEW and is the first child of it's parent
-			// OR $page->forceSaveParents is set (debug/debug, can be removed later)
-			$this->saveParents($page->parent_id, $page->parent->numChildren);
-		}
-
-		if($page->parentPrevious && $page->parentPrevious->numChildren == 0) {
-			// $page was moved and it's previous parent is now left with no children, this ensures the old entries get deleted
-			$this->saveParents($page->parentPrevious->id, 0);
-		}
-
-		// trigger hooks
-		$this->saved($page, $changes, $changesValues);
-		if($triggerAddedPage) $this->added($triggerAddedPage);
-		if($page->namePrevious && $page->namePrevious != $page->name) $this->renamed($page);
-		if($page->parentPrevious) $this->moved($page);
-		if($page->templatePrevious) $this->templateChanged($page);
-		if(in_array('status', $changes)) $this->statusChanged($page); 
-
-		$this->debugLog('save', $page, true);
-
-		return true; 
-	}
-
-	/**
-	 * Save just a field from the given page as used by Page::save($field)
-	 *
-	 * This function is public, but the preferred manner to call it is with $page->save($field)
-	 *
-	 * @param Page $page
-	 * @param string|Field $field Field object or name (string)
-	 * @param array $options Specify option 'quiet' => true, to bypass updating of modified_users_id and modified time. 
-	 * @return bool True on success
-	 * @throws WireException
-	 *
-	 */
-	public function ___saveField(Page $page, $field, array $options = array()) {
-
-		$reason = '';
-		if($page->isNew()) throw new WireException("Can't save field from a new page - please save the entire page first"); 
-		if(!$this->isSaveable($page, $reason, $field, $options)) throw new WireException("Can't save field from page {$page->id}: {$page->path}: $reason"); 
-		if($field && (is_string($field) || is_int($field))) $field = $this->fuel('fields')->get($field);
-		if(!$field instanceof Field) throw new WireException("Unknown field supplied to saveField for page {$page->id}");
-		if(!$page->fields->has($field)) throw new WireException("Page {$page->id} does not have field {$field->name}"); 
-
-		$value = $page->get($field->name); 
-		if($value instanceof Pagefiles || $value instanceof Pagefile) $page->filesManager()->save();
-		$page->trackChange($field->name); 	
-
-		$this->saveFieldReady($page, $field); 
-		if($field->type->savePageField($page, $field)) { 
-			$page->untrackChange($field->name); 
-			if(empty($options['quiet'])) {
-				$user = $this->wire('user');
-				$userID = (int) ($user ? $user->id : $this->config->superUserPageID);
-				$database = $this->wire('database');
-				$query = $database->prepare("UPDATE pages SET modified_users_id=:userID, modified=NOW() WHERE id=:pageID"); 
-				$query->bindValue(':userID', $userID, PDO::PARAM_INT);
-				$query->bindValue(':pageID', $page->id, PDO::PARAM_INT);
-				$query->execute();
-			}
-			$return = true; 
-			$this->savedField($page, $field); 
-		} else {
-			$return = false; 
-		}
-
-		$this->debugLog('saveField', "$page:$field", $return);
-		return $return;
-	}
-
-
-	/**
-	 * Save references to the Page's parents in pages_parents table, as well as any other pages affected by a parent change
-	 *
-	 * Any pages_id passed into here are assumed to have children
-	 *
-	 * @param int $pages_id ID of page to save parents from
-	 * @param int $numChildren Number of children this Page has
-	 * @param int $level Recursion level, for debugging.
-	 * @return bool
-	 *
-	 */
-	protected function saveParents($pages_id, $numChildren, $level = 0) {
-
-		$pages_id = (int) $pages_id; 
-		if(!$pages_id) return false; 
-		$database = $this->wire('database');
-
-		$query = $database->prepare("DELETE FROM pages_parents WHERE pages_id=:pages_id"); 
-		$query->bindValue(':pages_id', $pages_id, PDO::PARAM_INT); 
-		$query->execute();
-
-		if(!$numChildren) return true; 
-
-		$insertSql = ''; 
-		$id = $pages_id; 
-		$cnt = 0;
-		$query = $database->prepare("SELECT parent_id FROM pages WHERE id=:id"); 
-
-		do {
-			if($id < 2) break; // home has no parent, so no need to do that query
-			$query->bindValue(":id", $id, PDO::PARAM_INT);
-			$query->execute();
-			list($id) = $query->fetch(PDO::FETCH_NUM); 
-			$id = (int) $id; 
-			if(!$id) break;
-			$insertSql .= "($pages_id, $id),";
-			$cnt++; 
-
-		} while(1); 
-
-		if($insertSql) {
-			$sql = "INSERT INTO pages_parents (pages_id, parents_id) VALUES" . rtrim($insertSql, ","); 
-			$database->exec($sql);
-		}
-
-		// find all children of $pages_id that themselves have children
-		$sql = 	"SELECT pages.id, COUNT(children.id) AS numChildren " . 
-				"FROM pages " . 
-				"JOIN pages AS children ON children.parent_id=pages.id " . 
-				"WHERE pages.parent_id=:pages_id " . 
-				"GROUP BY pages.id ";
-		
-		$query = $database->prepare($sql);
-		$query->bindValue(':pages_id', $pages_id, PDO::PARAM_INT); 
-		$query->execute();
-		
-		while($row = $query->fetch(PDO::FETCH_ASSOC)) {
-			$this->saveParents($row['id'], $row['numChildren'], $level+1);
-		}
-		$query->closeCursor();
-
-		return true; 	
-	}
-
-	/**
-	 * Sets a new Page status and saves the page, optionally recursive with the children, grandchildren, and so on.
-	 *
-	 * While this can be performed with other methods, this is here just to make it fast for internal/non-api use. 
-	 * See the trash and restore methods for an example. 
-	 *
-	 * @param int $pageID 
-	 * @param int $status Status per flags in Page::status* constants
-	 * @param bool $recursive Should the status descend into the page's children, and grandchildren, etc?
-	 * @param bool $remove Should the status be removed rather than added?
-	 *
-	 */
-	protected function savePageStatus($pageID, $status, $recursive = false, $remove = false) {
-		$pageID = (int) $pageID; 
-		$status = (int) $status; 
-		$sql = $remove ? "status & ~$status" : $sql = "status|$status";
-		$database = $this->wire('database');
-		
-		$query = $database->prepare("UPDATE pages SET status=$sql WHERE id=:page_id"); 
-		$query->bindValue(":page_id", $pageID, PDO::PARAM_INT); 
-		$query->execute();
-		
-		if($recursive) { 
-			$query = $database->prepare("SELECT id FROM pages WHERE parent_id=:parent_id"); // QA
-			$query->bindValue(":parent_id", $pageID, PDO::PARAM_INT); 
-			$query->execute();
-			while($row = $query->fetch(PDO::FETCH_ASSOC)) {
-				$this->savePageStatus($row['id'], $status, true, $remove);
-			}
-			$query->closeCursor();
-		}
-	}
-
-	/**
-	 * Is the given page deleteable?
-	 *
-	 * Note: this does not account for user permission checking. It only checks if the page is in a state to be saveable via the API. 
+	 * #pw-internal
 	 *
 	 * @param Page $page
 	 * @return bool True if deleteable, False if not
 	 *
 	 */
 	public function isDeleteable(Page $page) {
-
-		$deleteable = true; 
-		if(!$page->id || $page->status & Page::statusSystemID || $page->status & Page::statusSystem) $deleteable = false; 
-			else if($page instanceof NullPage) $deleteable = false;
-
-		return $deleteable;
+		return $this->editor()->isDeleteable($page);
 	}
-
-	/**
-	 * Move a page to the trash
-	 *
-	 * If you have already set the parent to somewhere in the trash, then this method won't attempt to set it again. 
-	 *
-	 * @param Page $page
-	 * @param bool $save Set to false if you will perform the save() call, as is the case when called from the Pages::save() method.
-	 * @return bool
-	 * @throws WireException
-	 *
-	 */
-	public function ___trash(Page $page, $save = true) {
-		if(!$this->isDeleteable($page) || $page->template->noTrash) throw new WireException("This page may not be placed in the trash"); 
-		if(!$trash = $this->get($this->config->trashPageID)) {
-			throw new WireException("Unable to load trash page defined by config::trashPageID"); 
-		}
-		$page->addStatus(Page::statusTrash); 
-		if(!$page->parent->isTrash()) $page->parent = $trash;
-		if(!preg_match('/^' . $page->id . '_.+/', $page->name)) {
-			// make the name unique when in trash, to avoid namespace collision
-			$page->name = $page->id . "_" . $page->name; 
-		}
-		if($save) $this->save($page); 
-		$this->savePageStatus($page->id, Page::statusTrash, true, false); 
-		$this->trashed($page);
-		$this->debugLog('trash', $page, true); 
-		return true; 
-	}
-
-	/**
-	 * Restore a page from the trash back to a non-trash state
-	 *
-	 * Note that this method assumes already have set a new parent, but have not yet saved
-	 *
-	 * @param Page $page
-	 * @param bool $save Set to false if you only want to prep the page for restore (i.e. being saved elsewhere)
-	 * @return bool
-	 *
-	 */
-	protected function ___restore(Page $page, $save = true) {
-		if(preg_match('/^(' . $page->id . ')_(.+)$/', $page->name, $matches)) {
-			$name = $matches[2]; 
-			if(!count($page->parent->children("name=$name"))) 
-				$page->name = $name;  // remove namespace collision info if no collision
-		}
-		$page->removeStatus(Page::statusTrash); 
-		if($save) $page->save();
-		$this->savePageStatus($page->id, Page::statusTrash, true, true); 
-		$this->restored($page);
-		$this->debugLog('restore', $page, true); 
-		return true; 
-	}
-
-	/**
-	 * Permanently delete a page and it's fields. 
-	 *
-	 * Unlike trash(), pages deleted here are not restorable. 
-	 *
-	 * If you attempt to delete a page with children, and don't specifically set the $recursive param to True, then 
-	 * this method will throw an exception. If a recursive delete fails for any reason, an exception will be thrown.
-	 *
-	 * @param Page $page
-	 * @param bool $recursive If set to true, then this will attempt to delete all children too.
-	 * @param array $options Optional settings to change behavior (for the future)
-	 * @return bool
-	 * @throws WireException on fatal error
-	 *
-	 */
-	public function ___delete(Page $page, $recursive = false, array $options = array()) {
-
-		if(!$this->isDeleteable($page)) throw new WireException("This page may not be deleted"); 
-
-		if($page->numChildren) {
-			if(!$recursive) {
-				throw new WireException("Can't delete Page $page because it has one or more children."); 
-			} else foreach($page->children("include=all") as $child) {
-				if(!$this->delete($child, true)) throw new WireException("Error doing recursive page delete, stopped by page $child"); 
-			}
-		}
-
-		// trigger a hook to indicate delete is ready and WILL occur
-		$this->deleteReady($page); 
-	
-		foreach($page->fieldgroup as $field) {
-			if(!$field->type->deletePageField($page, $field)) {
-				$this->error("Unable to delete field '$field' from page '$page'"); 
-			}
-		}
-
-		try { 
-			if(PagefilesManager::hasPath($page)) $page->filesManager->emptyAllPaths(); 
-		} catch(Exception $e) { 
-		}
-		// $page->getCacheFile()->remove();
-
-		$access = new PagesAccess();	
-		$access->deletePage($page); 
-
-		$database = $this->wire('database');
-			
-		$query = $database->prepare("DELETE FROM pages_parents WHERE pages_id=:page_id"); 
-		$query->bindValue(":page_id", $page->id, PDO::PARAM_INT); 
-		$query->execute();
-		
-		$query = $database->prepare("DELETE FROM pages WHERE id=:page_id LIMIT 1"); // QA
-		$query->bindValue(":page_id", $page->id, PDO::PARAM_INT); 
-		$query->execute();
-			
-		$this->sortfields->delete($page); 
-		$page->setTrackChanges(false); 
-		$page->status = Page::statusDeleted; // no need for bitwise addition here, as this page is no longer relevant
-		$this->deleted($page);
-		$this->uncacheAll($page);
-		$this->debugLog('delete', $page, true); 
-
-		return true; 
-	}
-
-
-	/**
-	 * Clone an entire page, it's assets and children and return it. 
-	 *
-	 * @param Page $page Page that you want to clone
-	 * @param Page $parent New parent, if different (default=same parent)
-	 * @param bool $recursive Clone the children too? (default=true)
-	 * @param array $options Optional options that can be passed to clone or save
-	 * 	- forceID (int): force a specific ID
-	 * 	- set (array): Array of properties to set to the clone (you can also do this later)
-	 * @return Page the newly cloned page or a NullPage() with id=0 if unsuccessful.
-	 * @throws WireException|Exception on fatal error
-	 *
-	 */
-	public function ___clone(Page $page, Page $parent = null, $recursive = true, $options = array()) {
-		
-		// if parent is not changing, we have to modify name now
-		if(is_null($parent)) {
-			$parent = $page->parent; 
-			$n = 1; 
-			$name = $page->name . '-' . $n; 
-		} else {
-			$name = $page->name; 
-			$n = 0; 
-		}
-
-		// make sure that we have a unique name
-		while(count($parent->children("name=$name, include=all"))) {
-			$name = $page->name . '-' . (++$n); 
-		}
-
-		// Ensure all data is loaded for the page
-		foreach($page->template->fieldgroup as $field) {
-			$page->get($field->name); 
-		}
-
-		// clone in memory
-		$copy = clone $page; 
-		$copy->id = isset($options['forceID']) ? (int) $options['forceID'] : 0; 
-		$copy->setIsNew(true); 
-		$copy->name = $name; 
-		$copy->parent = $parent; 
-		
-		// set any properties indicated in options	
-		if(isset($options['set']) && is_array($options['set'])) {
-			foreach($options['set'] as $key => $value) {
-				$copy->set($key, $value); 
-			}
-		}
-
-		// tell PW that all the data needs to be saved
-		foreach($copy->template->fieldgroup as $field) {
-			$copy->trackChange($field->name); 
-		}
-
-		$o = $copy->outputFormatting; 
-		$copy->setOutputFormatting(false); 
-		$this->cloneReady($page, $copy); 
-		try {
-			$this->cloning = true; 
-			$options['ignoreFamily'] = true; // skip family checks during clone
-			$this->save($copy, $options);
-		} catch(Exception $e) {
-			$this->cloning = false;
-			throw $e;
-		}
-		$this->cloning = false;
-		$copy->setOutputFormatting($o); 
-
-		// check to make sure the clone has worked so far
-		if(!$copy->id || $copy->id == $page->id) return new NullPage(); 
-
-		// copy $page's files over to new page
-		if(PagefilesManager::hasFiles($page)) {
-			$copy->filesManager->init($copy); 
-			$page->filesManager->copyFiles($copy->filesManager->path()); 
-		}
-
-		// if there are children, then recurisvely clone them too
-		if($page->numChildren && $recursive) {
-			foreach($page->children("include=all") as $child) {
-				$this->clone($child, $copy); 	
-			}	
-		}
-
-		$copy->parentPrevious = null;
-		$copy->resetTrackChanges();
-
-		$this->cloned($page, $copy); 
-		$this->debugLog('clone', "page=$page, parent=$parent", $copy);
-	
-		return $copy; 	
-	}
-
 
 	/**
 	 * Given a Page ID, return it if it's cached, or NULL of it's not. 
@@ -1473,169 +821,189 @@ class Pages extends Wire {
 	 * If no ID is provided, then this will return an array copy of the full cache.
 	 *
 	 * You may also pass in the string "id=123", where 123 is the page_id
+	 * 
+	 * #pw-internal
 	 *
 	 * @param int|string|null $id 
 	 * @return Page|array|null
 	 *
 	 */
 	public function getCache($id = null) {
-		if(!$id) return $this->pageIdCache; 
-		if(!ctype_digit("$id")) $id = str_replace('id=', '', $id); 
-		if(ctype_digit("$id")) $id = (int) $id; 
-		if(!isset($this->pageIdCache[$id])) return null; 
-		$page = $this->pageIdCache[$id];
-		$page->setOutputFormatting($this->outputFormatting); 
-		return $page; 
+		return $this->cacher->getCache($id);
 	}
 
 	/**
 	 * Cache the given page. 
+	 * 
+	 * #pw-internal
 	 *
 	 * @param Page $page
 	 *
 	 */
 	public function cache(Page $page) {
-		if($page->id) $this->pageIdCache[$page->id] = $page; 
+		return $this->cacher->cache($page);
 	}
 
 	/**
-	 * Remove the given page from the cache. 
+	 * Remove the given page(s) from the cache, or uncache all by omitting $page argument
 	 *
-	 * Note: does not remove pages from selectorCache. Call uncacheAll to do that. 
+	 * When no $page argument is given, this method behaves the same as $pages->uncacheAll().
+	 * When any $page argument is given, this does not remove pages from selectorCache.
+	 * 
+	 * #pw-internal
 	 *
-	 * @param Page $page
+	 * @param Page|PageArray|null $page Page to uncache, or omit to uncache all.
+	 * @param array $options Additional options to modify behavior: 
+	 *   - `shallow` (bool): By default, this method also calls $page->uncache(). To prevent that call, set this to true. 
+	 * @return int Number of pages uncached
 	 *
 	 */
-	public function uncache(Page $page) {
-		$page->uncache();
-		unset($this->pageIdCache[$page->id]); 
+	public function uncache($page = null, array $options = array()) {
+		$cnt = 0;
+		if(is_null($page)) {
+			$cnt = $this->cacher->uncacheAll(null, $options);
+		} else if($page instanceof Page) {
+			if($this->cacher->uncache($page, $options)) $cnt++;
+		} else if($page instanceof PageArray) {
+			foreach($page as $p) {
+				if($this->cacher->uncache($p, $options)) $cnt++;
+			}
+		}
+		return $cnt;
 	}
 
 	/**
-	 * Remove all pages from the cache. 
+	 * Remove all pages from the cache (to clear memory)
+	 * 
+	 * This method clears all pages that ProcessWire has cached in memory, making room for more pages to be loaded. 
+	 * Use of this method (along with pagination) may be necessary when modifying or calculating from thousand of pages.
+	 * 
+	 * ~~~~~
+	 * // calculate total dollar value of all 50000+ products in inventory
+	 * $total = 0;
+	 * $start = 0;
+	 * $limit = 500;
+	 * 
+	 * do {
+	 *   $products = $pages->find("template=product, start=$start, limit=$limit"); 
+	 *   if(!$products->count()) break;
+	 *   foreach($products as $product) {
+	 *     $total += ($product->qty * $product->price); 
+	 *   }
+	 *   unset($products);
+	 *   $start += $limit; 
+	 *   // clear cache to make room for another 500 products
+	 *   $pages->uncacheAll();
+	 * } while(true);
+	 * 
+	 * echo "Total value of all products: $" . number_format($total);
+	 * ~~~~~
+	 * 
+	 * #pw-advanced
 	 * 
 	 * @param Page $page Optional Page that initiated the uncacheAll
+	 * @param array $options Options to modify default behavior: 
+	 *   - `shallow` (bool): By default, this method also calls $page->uncache(). To prevent that call, set this to true.
+	 * @return int Number of pages uncached
 	 *
 	 */
-	public function uncacheAll(Page $page = null) {
-	
-		$this->pageFinder = null;
-
-		unset($this->sortfields); 
-		$this->sortfields = new PagesSortfields();
-
-		if($this->config->debug) $this->debugLog('uncacheAll', 'pageIdCache=' . count($this->pageIdCache) . ', pageSelectorCache=' . count($this->pageSelectorCache)); 
-
-		foreach($this->pageIdCache as $id => $page) {
-			if(!$page->numChildren) $this->uncache($page); 
-		}
-
-		$this->pageIdCache = array();
-		$this->pageSelectorCache = array();
-
-		Page::$loadingStack = array();
-		Page::$instanceIDs = array(); 
-	}
-
-	/**
-	 * Cache the given selector string and options with the given PageArray
-	 *
-	 * @param string $selector
-	 * @param array $options
-	 * @param PageArray $pages
-	 * @return bool True if pages were cached, false if not
-	 *
-	 */
-	protected function selectorCache($selector, array $options, PageArray $pages) {
-
-		// get the string that will be used for caching
-		$selector = $this->getSelectorCache($selector, $options, true); 		
-
-		// optimization: don't cache single pages that have an unpublished status or higher
-		if(count($pages) && !empty($options['findOne']) && $pages->first()->status >= Page::statusUnpublished) return false; 
-
-		$this->pageSelectorCache[$selector] = clone $pages; 
-
-		return true; 
-	}
-
-	/**
-	 * Retrieve any cached page IDs for the given selector and options OR false if none found.
-	 *
-	 * You may specify a third param as TRUE, which will cause this to just return the selector string (with hashed options)
-	 *
-	 * @param string $selector
-	 * @param array $options
-	 * @param bool $returnSelector default false
-	 * @return array|null|string
-	 *
-	 */
-	protected function getSelectorCache($selector, $options, $returnSelector = false) {
-
-		if(count($options)) {
-			$optionsHash = '';
-			ksort($options);		
-			foreach($options as $key => $value) $optionsHash .= "[$key:$value]";
-			$selector .= "," . $optionsHash;
-		} else $selector .= ",";
-
-		// optimization to use consistent conventions for commonly interchanged names
-		$selector = str_replace(array('path=/,', 'parent=/,'), array('id=1,', 'parent_id=1,'), $selector); 
-
-		// optimization to filter out common status checks for pages that won't be cached anyway
-		if(!empty($options['findOne'])) {
-			$selector = str_replace(array("status<" . Page::statusUnpublished, "status<" . Page::statusMax, 'start=0', 'limit=1', ',', ' '), '', $selector); 
-			$selector = trim($selector, ", "); 
-		}
-
-		if($returnSelector) return $selector; 
-		if(isset($this->pageSelectorCache[$selector])) return $this->pageSelectorCache[$selector]; 
-
-		return null; 
+	public function uncacheAll(Page $page = null, array $options = array()) {
+		return $this->cacher->uncacheAll($page, $options);
 	}
 
 	/**
 	 * For internal Page instance access, return the Pages sortfields property
+	 * 
+	 * #pw-internal
 	 *
+	 * @param bool $reset Specify boolean true to reset the Sortfields instance
 	 * @return PagesSortFields
 	 *
 	 */
-	public function sortfields() {
+	public function sortfields($reset = false) {
+		if($reset) {
+			unset($this->sortfields);
+			$this->sortfields = $this->wire(new PagesSortfields());
+		}
 		return $this->sortfields; 
 	}
 
 	/**	
  	 * Return a fuel or other property set to the Pages instance
+	 * 
+	 * @param string $key
+	 * @return mixed
 	 *
 	 */
 	public function __get($key) {
-		if($key == 'outputFormatting') return $this->outputFormatting; 
-		if($key == 'cloning') return $this->cloning; 
+		if($key == 'outputFormatting') return $this->loader->getOutputFormatting(); 
+		if($key == 'cloning') return $this->editor()->isCloning(); 
+		if($key == 'autojoin') return $this->loader->getAutojoin();
 		return parent::__get($key); 
 	}
 
 	/**
 	 * Set whether loaded pages have their outputFormatting turn on or off
 	 *
-	 * By default, it is turned on. 
+	 * This affects pages loaded after this method has been called. 
+	 * By default, output formatting is turned on on the front-end of the site, 
+	 * and off on the back-end (admin) of the site. 
+	 * 
+	 * See the Pages::of() method alias, which is preferred for the public API.
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param bool $outputFormatting
 	 *
 	 */
 	public function setOutputFormatting($outputFormatting = true) {
-		$this->outputFormatting = $outputFormatting ? true : false; 
+		$this->loader->setOutputFormatting($outputFormatting);
+	}
+
+	/**
+	 * Get or set the current output formatting state
+	 * 
+	 * This affects pages loaded after this method has been called.
+	 * By default, output formatting is turned on on the front-end of the site,
+	 * and off on the back-end (admin) of the site. 
+	 * 
+	 * ~~~~~
+	 * // Dictate that loaded pages should have output formatting enabled
+	 * $pages->of(true);
+	 * 
+	 * // Get the output formatting state for future loaded pages
+	 * if($pages->of()) {
+	 *   echo "Output formatting is ON";
+	 * } else {
+	 *   echo "Output formatting is OFF";
+	 * }
+	 * ~~~~~
+	 * 
+	 * #pw-advanced
+	 * 
+	 * @param null|bool $of Specify boolean to set output formatting state, or omit to get output formatting state.
+	 * @return bool Returns current output formatting state. 
+	 * 
+	 */
+	public function of($of = null) {
+		if($of !== null) $this->setOutputFormatting($of ? true : false);
+		return $this->outputFormatting;
 	}
 
 	/**
 	 * Log a Pages class event
 	 *
 	 * Only active in debug mode. 
+	 * 
+	 * #pw-internal
 	 *
 	 * @param string $action Name of action/function that occurred.
 	 * @param string $details Additional details, like a selector string. 
 	 * @param string|object The value that was returned.
 	 *
 	 */
-	protected function debugLog($action = '', $details = '', $result = '') {
-		if(!$this->config->debug) return;
+	public function debugLog($action = '', $details = '', $result = '') {
+		if(!$this->debug) return;
 		$this->debugLog[] = array(
 			'time' => microtime(),
 			'action' => (string) $action, 
@@ -1648,13 +1016,15 @@ class Pages extends Wire {
 	 * Get the Pages class debug log
 	 *
 	 * Only active in debug mode
+	 * 
+	 * #pw-internal
 	 *
 	 * @param string $action Optional action within the debug log to find
 	 * @return array
 	 *
 	 */
 	public function getDebugLog($action = '') {
-		if(!$this->config->debug) return array();
+		if(!$this->wire('config')->debug) return array();
 		if(!$action) return $this->debugLog; 
 		$debugLog = array();
 		foreach($this->debugLog as $item) if($item['action'] == $action) $debugLog[] = $item; 
@@ -1663,149 +1033,470 @@ class Pages extends Wire {
 
 	/**
 	 * Return a PageFinder object, ready to use
+	 * 
+	 * #pw-internal
 	 *
 	 * @return PageFinder
 	 *
 	 */
 	public function getPageFinder() {
-		return new PageFinder();
+		return $this->wire(new PageFinder());
 	}
+
+	/**
+	 * Enable or disable use of autojoin for all queries
+	 * 
+	 * Default should always be true, and you may use this to turn it off temporarily, but
+	 * you should remember to turn it back on
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param bool $autojoin
+	 * 
+	 */
+	public function setAutojoin($autojoin = true) {
+		$this->loader->setAutojoin($autojoin);
+	}	
+
+	/**
+	 * Return a new/blank PageArray
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param array $options Optionally specify array('pageArrayClass' => 'YourPageArrayClass')
+	 * @return PageArray
+	 * 
+	 */
+	public function newPageArray(array $options = array()) {
+		$class = 'PageArray';
+		if(!empty($options['pageArrayClass'])) $class = $options['pageArrayClass'];
+		$class = wireClassName($class, true);
+		$pageArray = $this->wire(new $class());
+		if(!$pageArray instanceof PageArray) $pageArray = $this->wire(new PageArray());
+		return $pageArray;
+	}
+
+	/**
+	 * Return a new/blank Page object (in memory only)
+	 * 
+	 * #pw-internal
+	 *
+	 * @param array $options Optionally specify array of any of the following:
+	 *   - `pageClass` (string): Class to use for Page object (default='Page').
+	 *   - `template` (Template|id|string): Template to use. 
+	 * @return Page
+	 *
+	 */
+	public function newPage(array $options = array()) {
+		$class = 'Page';
+		if(!empty($options['pageClass'])) $class = $options['pageClass'];
+		if(isset($options['template'])) {
+			$template = $options['template'];
+			if(!is_object($template)) {
+				$template = empty($template) ? null : $this->wire('templates')->get($template);
+			}
+			if($template && empty($options['pageClass']) && $template->pageClass) {
+				$class = $template->pageClass;
+				if(!wireClassExists($class)) $class = 'Page';
+			}	
+		} else {
+			$template = null;
+		}
+		$class = wireClassName($class, true);
+		$page = $this->wire(new $class($template));
+		if(!$page instanceof Page) $page = $this->wire(new Page($template));
+		return $page;
+	}
+
+	/**
+	 * Return a new NullPage
+	 * 
+	 * #pw-internal
+	 * 
+	 * @return NullPage
+	 * 
+	 */
+	public function newNullPage() {
+		$page = new NullPage();
+		$this->wire($page);
+		return $page;
+	}
+
+	/**
+	 * Execute a PDO statement, with retry and error handling (deprecated)
+	 * 
+	 * #pw-internal
+	 *
+	 * @param \PDOStatement $query
+	 * @param bool $throw Whether or not to throw exception on query error (default=true)
+	 * @param int $maxTries Max number of times it will attempt to retry query on error
+	 * @return bool
+	 * @throws \PDOException
+	 * @deprecated Use $database->execute() instead
+	 *
+	 */
+	public function executeQuery(\PDOStatement $query, $throw = true, $maxTries = 3) {
+		$this->wire('database')->execute($query, $throw, $maxTries);
+	}
+
+	/**
+	 * Enables use of $pages(123), $pages('/path/') or $pages('selector string')
+	 * 
+	 * When given an integer or page path string, it calls $pages->get(key); 
+	 * When given a string, it calls $pages->find($key);
+	 * When given an array, it calls $pages->getById($key);
+	 * 
+	 * @param string|int|array $key
+	 * @return Page|PageArray
+	 *
+	 */
+	public function __invoke($key) {
+		if(empty($key)) return $this;
+		if(is_int($key)) return $this->get($key); 
+		if(is_array($key)) return $this->getById($key); 
+		if(strpos($key, '/') === 0 && ctype_alnum(str_replace(array('/', '-', '_', '.'), '', $key))) return $this->get($key);
+		return $this->find($key);
+	}
+
+	/**
+	 * Save to pages activity log, if enabled in config
+	 * 
+	 * #pw-internal
+	 * 
+	 * @param $str
+	 * @param Page|null Page to log
+	 * @return WireLog
+	 * 
+	 */
+	public function log($str, Page $page) {
+		if(!in_array('pages', $this->wire('config')->logs)) return parent::___log();
+		if($this->wire('process') != 'ProcessPageEdit') $str .= " [From URL: " . $this->wire('input')->url() . "]";
+		$options = array('name' => 'pages', 'url' => $page->path); 
+		return parent::___log($str, $options); 
+	}
+
+	/**
+	 * @return PagesLoader
+	 * 
+	 * #pw-internal
+	 *
+	 */
+	public function loader() {
+		return $this->loader;
+	}
+
+	/**
+	 * @return PagesEditor
+	 * 
+	 * #pw-internal
+	 *
+	 */
+	public function editor() {
+		if(!$this->editor) $this->editor = $this->wire(new PagesEditor($this));
+		return $this->editor;
+	}
+
+	/**
+	 * @return PagesLoaderCache
+	 * 
+	 * #pw-internal
+	 *
+	 */
+	public function cacher() {
+		return $this->cacher;
+	}
+	
+	/**
+	 * @return PagesTrash
+	 * 
+	 * #pw-internal
+	 *
+	 */
+	public function trasher() {
+		if(is_null($this->trasher)) $this->trasher = $this->wire(new PagesTrash($this));
+		return $this->trasher;
+	}
+
+	/**
+	 * Get or set debug state
+	 * 
+	 * #pw-internal
+	 *
+	 * @param bool|null $debug
+	 * @return bool
+	 *
+	 */
+	public function debug($debug = null) {
+		$value = $this->debug;
+		if(!is_null($debug)) {
+			$this->debug = (bool) $debug;
+			$this->loader->debug($debug);
+		}
+		return $value;
+	}
+
+	/***********************************************************************************************************************
+	 * COMMON PAGES HOOKS
+	 * 
+	 */
 
 	/**
 	 * Hook called after a page is successfully saved
 	 *
-	 * This is the same as Pages::save, except that it occurs before other save-related hooks (below),
-	 * Whereas Pages::save occurs after. In most cases, the distinction does not matter. 
+	 * This is the same as hooking after `Pages::save`, except that it occurs before other save-related hooks.
+	 * Whereas `Pages::save` hooks occur after. In most cases, the distinction does not matter. 
+	 * 
+	 * #pw-hooker
 	 * 
 	 * @param Page $page The page that was saved
 	 * @param array $changes Array of field names that changed
 	 * @param array $values Array of values that changed, if values were being recorded, see Wire::getChanges(true) for details.
 	 *
 	 */
-	protected function ___saved(Page $page, array $changes = array(), $values = array()) { 
+	public function ___saved(Page $page, array $changes = array(), $values = array()) { 
+		$str = "Saved page";
+		if(count($changes)) $str .= " (Changes: " . implode(', ', $changes) . ")";
+		$this->log($str, $page);
 		$this->wire('cache')->maintenance($page);
+		if($page->className() != 'Page') {
+			$manager = $page->getPagesManager();
+			if($manager instanceof PagesType) $manager->saved($page, $changes, $values);
+		}
 	}
 
 	/**
-	 * Hook called when a new page has been added
+	 * Hook called after a new page has been added
+	 * 
+	 * #pw-hooker
+	 * 
+	 * @param Page $page Page that was added. 
 	 *
 	 */
-	protected function ___added(Page $page) { }
+	public function ___added(Page $page) { 
+		$this->log("Added page", $page);
+		if($page->className() != 'Page') {
+			$manager = $page->getPagesManager();
+			if($manager instanceof PagesType) $manager->added($page);
+		}
+	}
 
 	/**
 	 * Hook called when a page has been moved from one parent to another
 	 *
-	 * Note the previous parent is in $page->parentPrevious
+	 * Note the previous parent is accessible in the `$page->parentPrevious` property.
+	 * 
+	 * #pw-hooker
+	 * 
+	 * @param Page $page Page that was moved. 
 	 *
 	 */
-	protected function ___moved(Page $page) { }
+	public function ___moved(Page $page) { 
+		if($page->parentPrevious) {
+			$this->log("Moved page from {$page->parentPrevious->path}$page->name/", $page);
+		} else {
+			$this->log("Moved page", $page); 
+		}
+	}
 
 	/**
 	 * Hook called when a page's template has been changed
 	 *
-	 * Note the previous template is in $page->templatePrevious
+	 * Note the previous template is available in the `$page->templatePrevious` property. 
+	 * 
+	 * #pw-hooker
+	 * 
+	 * @param Page $page Page that had its template changed. 
 	 *
 	 */
-	protected function ___templateChanged(Page $page) { }
+	public function ___templateChanged(Page $page) {
+		if($page->templatePrevious) {
+			$this->log("Changed template on page from '$page->templatePrevious' to '$page->template'", $page);
+		} else {
+			$this->log("Changed template on page to '$page->template'", $page);
+		}
+	}
 
 	/**
 	 * Hook called when a page has been moved to the trash
+	 * 
+	 * #pw-hooker
+	 * 
+	 * @param Page $page Page that was moved to the trash
 	 *
 	 */
-	protected function ___trashed(Page $page) { }
+	public function ___trashed(Page $page) { 
+		$this->log("Trashed page", $page);
+	}
 
 	/**
-	 * Hook called when a page has been moved OUT of the trash
+	 * Hook called when a page has been moved OUT of the trash (restored)
+	 * 
+	 * #pw-hooker
+	 * 
+	 * @param Page $page Page that was restored
 	 *
 	 */
-	protected function ___restored(Page $page) { }
+	public function ___restored(Page $page) { 
+		$this->log("Restored page", $page); 
+	}
 
 	/**
 	 * Hook called just before a page is saved
 	 *
-	 * May be preferable to a before(save) hook because you know for sure a save will 
+	 * May be preferable to a before `Pages::save` hook because you know for sure a save will 
 	 * be executed immediately after this is called. Whereas you don't necessarily know
- 	 * that when before(save) is called, as an error may prevent it. 
+ 	 * that when the before `Pages::save` is called, as an error may prevent it. 
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page The page about to be saved
-	 * @return array Optional extra data to add to pages save query.
+	 * @return array Optional extra data to add to pages save query, which the hook can populate. 
 	 *
 	 */
-	protected function ___saveReady(Page $page) { return array(); }
+	public function ___saveReady(Page $page) {
+		$data = array();
+		if($page->className() != 'Page') {
+			$manager = $page->getPagesManager();
+			if($manager instanceof PagesType) $data = $manager->saveReady($page);
+		}
+		return $data;
+	}
 
 	/**
 	 * Hook called when a page is about to be deleted, but before data has been touched
 	 *
-	 * This is different from a before(delete) hook because this hook is called once it has 
-	 * been confirmed that the page is deleteable and WILL be deleted. 
+	 * This is different from a before `Pages::delete` hook because this hook is called once it has 
+	 * been confirmed that the page is deleteable and *will* be deleted. 
+	 * 
+	 * #pw-hooker
+	 * 
+	 * @param Page $page Page that is about to be deleted. 
 	 *
 	 */
-	protected function ___deleteReady(Page $page) { }
+	public function ___deleteReady(Page $page) {
+		if($page->className() != 'Page') {
+			$manager = $page->getPagesManager();
+			if($manager instanceof PagesType) $manager->deleteReady($page);
+		}
+	}
 
 	/**
-	 * Hook called when a page and it's data have been deleted
+	 * Hook called after a page and its data have been deleted
+	 * 
+	 * #pw-hooker
+	 * 
+	 * @param Page $page Page that was deleted
 	 *
 	 */
-	protected function ___deleted(Page $page) { 
+	public function ___deleted(Page $page) { 
+		$this->log("Deleted page", $page); 
 		$this->wire('cache')->maintenance($page);
+		if($page->className() != 'Page') {
+			$manager = $page->getPagesManager();
+			if($manager instanceof PagesType) $manager->deleted($page);
+		}
 	}
 
 	/**
 	 * Hook called when a page is about to be cloned, but before data has been touched
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page The original page to be cloned
 	 * @param Page $copy The actual clone about to be saved
 	 *
 	 */
-	protected function ___cloneReady(Page $page, Page $copy) { }
+	public function ___cloneReady(Page $page, Page $copy) { }
 
 	/**
 	 * Hook called when a page has been cloned
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page The original page to be cloned
 	 * @param Page $copy The completed cloned version of the page
 	 *
 	 */
-	protected function ___cloned(Page $page, Page $copy) { }
+	public function ___cloned(Page $page, Page $copy) { 
+		$this->log("Cloned page to $copy->path", $page); 
+	}
 
 	/**
 	 * Hook called when a page has been renamed (i.e. had it's name field change)
 	 *
-	 * The previous name can be accessed at $page->namePrevious;
-	 * The new name can be accessed at $page->name
-	 *
+	 * The previous name can be accessed at `$page->namePrevious`. 
+	 * The new name can be accessed at `$page->name`. 
+	 * 
 	 * This hook is only called when a page's name changes. It is not called when
 	 * a page is moved unless the name was changed at the same time. 
+	 * 
+	 * **Multi-language note:**  
+	 * Also note this hook may be called if a page's multi-language name changes.
+	 * In those cases the language-specific name is stored in "name123" while the
+	 * previous value is stored in "-name123" (where 123 is the language ID). 
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page The $page that was renamed
 	 *
 	 */
-	protected function ___renamed(Page $page) { }
+	public function ___renamed(Page $page) { 
+		if($page->namePrevious && $page->namePrevious != $page->name) {
+			$this->log("Renamed page from '$page->namePrevious' to '$page->name'", $page);
+		}
+	}
 
 	/**
-	 * Hook called when a page's has been changed and saved
+	 * Hook called when a page status has been changed and saved
 	 *
-	 * Previous status may be accessed at $page->statusPrevious
+	 * Previous status may be accessed at `$page->statusPrevious`.
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page 
 	 *
 	 */
-	protected function ___statusChanged(Page $page) {
+	public function ___statusChanged(Page $page) {
+		$status = $page->status; 
+		$statusPrevious = $page->statusPrevious; 
 		$isPublished = !$page->isUnpublished();
-		$wasPublished = !($page->statusPrevious & Page::statusUnpublished);
+		$wasPublished = !($statusPrevious & Page::statusUnpublished);
 		if($isPublished && !$wasPublished) $this->published($page);
 		if(!$isPublished && $wasPublished) $this->unpublished($page);
+	
+		$from = array();
+		$to = array();
+		foreach(Page::getStatuses() as $name => $flag) {
+			if($flag == Page::statusUnpublished) continue; // logged separately
+			if($statusPrevious & $flag) $from[] = $name;
+			if($status & $flag) $to[] = $name; 
+		}
+		if(count($from) || count($to)) {
+			$added = array();
+			$removed = array();
+			foreach($from as $name) if(!in_array($name, $to)) $removed[] = $name;
+			foreach($to as $name) if(!in_array($name, $from)) $added[] = $name;
+			$str = '';
+			if(count($added)) $str = "Added status '" . implode(', ', $added) . "'";
+			if(count($removed)) {
+				if($str) $str .= ". ";
+				$str .= "Removed status '" . implode(', ', $removed) . "'";
+			}
+			if($str) $this->log($str, $page);
+		}
 	}
 
 	/**
 	 * Hook called when a page's status is about to be changed and saved
 	 *
-	 * Previous status may be accessed at $page->statusPrevious
+	 * Previous status may be accessed at `$page->statusPrevious`.
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page 
 	 *
 	 */
-	protected function ___statusChangeReady(Page $page) {
+	public function ___statusChangeReady(Page $page) {
 		$isPublished = !$page->isUnpublished();
 		$wasPublished = !($page->statusPrevious & Page::statusUnpublished);
 		if($isPublished && !$wasPublished) $this->publishReady($page);
@@ -1814,66 +1505,85 @@ class Pages extends Wire {
 
 	/**
 	 * Hook called after an unpublished page has just been published
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page 
 	 *
 	 */
-	protected function ___published(Page $page) { }
+	public function ___published(Page $page) { 
+		$this->log("Published page", $page); 
+	}
 
 	/**
 	 * Hook called after published page has just been unpublished
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page 
 	 *
 	 */
-	protected function ___unpublished(Page $page) { }
+	public function ___unpublished(Page $page) { 
+		$this->log("Unpublished page", $page); 
+	}
 
 	/**
 	 * Hook called right before an unpublished page is published and saved
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page 
 	 *
 	 */
-	protected function ___publishReady(Page $page) { }
+	public function ___publishReady(Page $page) { }
 
 	/**
 	 * Hook called right before a published page is unpublished and saved
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param Page $page 
 	 *
 	 */
-	protected function ___unpublishReady(Page $page) { }
+	public function ___unpublishReady(Page $page) { }
 
 	/**
 	 * Hook called at the end of a $pages->find(), includes extra info not seen in the resulting PageArray
+	 * 
+	 * #pw-hooker
 	 *
 	 * @param PageArray $pages The pages that were found
 	 * @param array $details Extra information on how the pages were found, including: 
-	 * 	- PageFinder $pageFinder The PageFinder instance that was used
-	 * 	- array $pagesInfo The array returned by PageFinder
-	 * 	- array $options Options that were passed to $pages->find()
+	 *  - `pageFinder` (PageFinder): The PageFinder instance that was used.
+	 *  - `pagesInfo` (array): The array returned by PageFinder.
+	 *  - `options` (array): Options that were passed to $pages->find().
 	 *
 	 */
-	protected function ___found(PageArray $pages, array $details) { }
+	public function ___found(PageArray $pages, array $details) { }
 
 	/**
-	 * Hook called when Pages::saveField is going to execute
+	 * Hook called when Pages::saveField is ready to execute
+	 * 
+	 * #pw-hooker
 	 * 
 	 * @param Page $page
 	 * @param Field $field
 	 * 
 	 */
-	protected function ___saveFieldReady(Page $page, Field $field) { }
+	public function ___saveFieldReady(Page $page, Field $field) { }
 
 	/**
 	 * Hook called after Pages::saveField successfully executes
 	 * 
+	 * #pw-hooker
+	 * 
 	 * @param Page $page
 	 * @param Field $field
 	 * 
 	 */
-	protected function ___savedField(Page $page, Field $field) { }
-
+	public function ___savedField(Page $page, Field $field) { 
+		$this->log("Saved page field '$field->name'", $page); 
+	}
 
 }
 

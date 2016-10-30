@@ -12,6 +12,16 @@
 	<link rel="alternate" type="application/rss+xml" title="Recipe RSS Feed" href="{{ frontpage.url }}feed/" />
 
 	<meta name="google-site-verification" content="rG3o1FL36k5fLNtPdQkSrZjZotTx92sHCA-Sm-1Bk6M" />
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+
+	<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.5.18/webfont.js"></script>
+	<script>
+		WebFont.load({
+			google: {
+				families:  ['Roboto Slab:400,700']
+			}
+		});
+	</script>
 
 </head>
 <body class="template--{{ template }}">
@@ -19,21 +29,24 @@
 <header class="header-main">
 
 	<div class="inner">
-		<h1 class="header-main__logo"><i class="fa fa-book"></i> <a href="{{ frontpage.url }}">{{ pageTitle }}</a></h1>
+		<h1 class="header-main__logo"><a href="{{ frontpage.url }}"><i class="fa fa-book" aria-hidden="true"></i><span class="sr-only">Go to front page of </span> {{ pageTitle }}</a></h1>
 
-		<ul class="nav-main">
-			{% for p in nav_main %}
-				<li class="nav-main__item{% if (p.id == id) %} nav-main__item--current {% endif %}">
-					<a href="{{ p.url }}">{{ p.title }}</a></li>
-			{% endfor %}
-		</ul>
+		<nav class="nav-main" role="navigation">
+			<ul>
+				{% for p in nav_main %}
+					<li class="nav-main__item{% if (p.id == id) %} nav-main__item--current {% endif %}">
+						<a href="{{ p.url }}">{{ p.title }}</a></li>
+				{% endfor %}
+			</ul>
+		</nav>
 
 		<form class="module-search" action="{{ frontpage.url }}search-results/" method="get">
-			<input type="text" name="q" class="module-search__query" placeholder="Search here..." required />
-			<button type="submit" tabindex="-1" class="module-search__submit"><i class="fa fa-search"></i> <span class="hide">Search</span></button>
+			<label for="mainsearch" class="sr-only">Search here for recipes:</label>
+			<input id="mainsearch" type="text" name="q" class="module-search__query" placeholder="Type here..." aria-owns="ajaxSearch_body" aria-autocomplete="inline" required />
+			<button type="submit" tabindex="-1" class="module-search__submit" aria-label="Search"><i class="fa fa-search" aria-hidden="true"></i></button>
 		</form>
 
 	</div>
 
 </header>
-<main class="inner content-main">
+<main role="main" class="inner content-main">

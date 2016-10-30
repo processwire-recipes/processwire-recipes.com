@@ -5,6 +5,7 @@
 // ---------------------------------------------------------------
 
 .module-taglist {
+	@extend %clearfix;
 
 	ul {
 		@extend %clearfix;
@@ -13,7 +14,7 @@
 		list-style: none;
 
 		.template--home & {
-			margin-left: -4px;
+			margin-left: -.5rem;
 		}
 
 		li {

@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Cache Fieldtype
@@ -8,11 +8,8 @@
  * For documentation about the fields used in this class, please see:  
  * /wire/core/Fieldtype.php
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -21,7 +18,7 @@ class FieldtypeCache extends Fieldtype {
 	public static function getModuleInfo() {
 		return array(
 			'title' => 'Cache',
-			'version' => 101,
+			'version' => 102,
 			'summary' => 'Caches the values of other fields for fewer runtime queries. Can also be used to combine multiple text fields and have them all be searchable under the cached field name.'
 			);
 	}
@@ -34,8 +31,8 @@ class FieldtypeCache extends Fieldtype {
 	}
 
 	public function ___getCompatibleFieldtypes(Field $field) {
-		$fieldtypes = new Fieldtypes();
-		foreach($this->fuel('fieldtypes') as $fieldtype) {
+		$fieldtypes = $this->wire(new Fieldtypes());
+		foreach($this->wire('fieldtypes') as $fieldtype) {
 			if($fieldtype instanceof FieldtypeCache) $fieldtypes->add($fieldtype); 
 		}
 		return $fieldtypes; 
@@ -52,7 +49,7 @@ class FieldtypeCache extends Fieldtype {
 	}
 
 	public function getMatchQuery($query, $table, $subfield, $operator, $value) {
-		$ft = new DatabaseQuerySelectFulltext($query); 
+		$ft = $this->wire(new DatabaseQuerySelectFulltext($query)); 
 		$ft->match($table, $subfield, $operator, $value); 
 		return $query; 
 	}
@@ -110,7 +107,7 @@ class FieldtypeCache extends Fieldtype {
 			$query->execute();
 			$num = (int) $query->fetchColumn();
 			$query->closeCursor();
-		} catch(Exception $e) {
+		} catch(\Exception $e) {
 			$num = 0;
 		}
 		return $num; 
@@ -120,14 +117,22 @@ class FieldtypeCache extends Fieldtype {
 
 		$numPages = 0;
 		$numTemplates = 0; 
+		$max = 500;
+		$saveOptions = array(
+			'quiet' => true, 
+			'noHooks' => true, 
+		);
 
 		foreach($this->templates as $template) {
 			if(!$template->fields->has($field)) continue; 
 			$numTemplates++;
-			$numTemplatePages = 0; 
-			$pages = $this->pages->find("template=$template, include=all"); 
+			$numTemplatePages = 0;
+			$selector = "template=$template, include=all";
+			$total = $this->pages->count($selector);
+			$pages = $total > $max ? $this->pages->findMany($selector) : $this->pages->find($selector);
+			set_time_limit(60 * 5);
 			foreach($pages as $page) {
-				$page->save($field->name); 
+				$this->pages->___saveField($page, $field, $saveOptions);
 				$numPages++;
 				$numTemplatePages++; 
 			}

@@ -1,17 +1,14 @@
-<?php
+<?php 
 
 /**
  * Serves as a multi-language value placeholder for field values that contain a value in more than one language. 
  *
- * ProcessWire 2.x 
- * Copyright (C) 2012 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
-class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
+class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface, \IteratorAggregate {
 
 	/**
 	 * Inherit default language value when blank
@@ -44,14 +41,26 @@ class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
 	protected $field;
 
 	/**
+	 * Reference to Page that this value is for
+	 * 
+	 * @var Page
+	 * 
+	 */
+	protected $page; 
+
+	/**
 	 * Construct the multi language value
 	 *
  	 * @param array|string $values
 	 *
 	 */
-	public function __construct($values = null) { // #98
+	public function __construct(Page $page, Field $field, $values = null) { // #98
+	
+		$page->wire($this);
+		$this->setPage($page);
+		$this->setField($field);
 
-		$languageSupport = wire('modules')->get('LanguageSupport');
+		$languageSupport = $this->wire('modules')->get('LanguageSupport');
 		$this->defaultLanguagePageID = $languageSupport->defaultLanguagePageID; 
 
 		if(!is_array($values)) $values = array('data' => $values); 
@@ -70,12 +79,14 @@ class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
 	/**
 	 * Sets the value for a given language
 	 *
-	 * @param int|Language $languageID
+	 * @param int|Language|string $languageID Language object, id, or name
 	 * @param mixed $value
+	 * @return $this
 	 *
 	 */
 	public function setLanguageValue($languageID, $value) {
-		if(is_object($languageID) && $languageID instanceof Language) $languageID = $languageID->id; 
+		if(is_object($languageID) && $languageID instanceof Language) $languageID = $languageID->id;
+		if(is_string($languageID) && !ctype_digit("$languageID")) $languageID = $this->wire('languages')->get($languageID)->id;
 		$existingValue = isset($this->data[$languageID]) ? $this->data[$languageID] : '';
 		if($value instanceof LanguagesPageFieldValue) {
 			// to avoid potential recursion 
@@ -86,6 +97,7 @@ class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
 			$this->trackChange('data' . $languageID, $existingValue, $value); 
 		}
 		$this->data[(int)$languageID] = $value;
+		return $this;
 	}
 
 	/**
@@ -96,7 +108,7 @@ class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
 	 */
 	public function setFromInputfield(Inputfield $inputfield) {
 
-		foreach(wire('languages') as $language) {
+		foreach($this->wire('languages') as $language) {
 			if($language->isDefault) {
 				$key = 'value';
 			} else {
@@ -109,12 +121,14 @@ class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
 	/**
 	 * Given a language, returns the value in that language
 	 *
-	 * @param Language|int
+	 * @param Language|int|string Language object, id, or name
 	 * @return int
 	 *
 	 */
 	public function getLanguageValue($languageID) {
 		if(is_object($languageID) && $languageID instanceof Language) $languageID = $languageID->id; 
+		if(is_string($languageID) && !ctype_digit("$languageID")) $languageID = $this->wire('languages')->get($languageID)->id;
+		$languageID = (int) $languageID; 
 		return isset($this->data[$languageID]) ? $this->data[$languageID] : '';
 	}
 
@@ -131,7 +145,7 @@ class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
 	 *
 	 */
 	public function __toString() {
-		return self::isHooked('LanguagesPageFieldValue::getStringValue()') ? $this->__call('getStringValue', array()) : $this->___getStringValue();
+		return $this->wire('hooks')->isHooked('LanguagesPageFieldValue::getStringValue()') ? $this->__call('getStringValue', array()) : $this->___getStringValue();
 	}
 
 	protected function ___getStringValue() {
@@ -153,6 +167,30 @@ class LanguagesPageFieldValue extends Wire implements LanguagesValueInterface {
 
 	public function setField(Field $field) {
 		$this->field = $field; 
+	}
+	
+	public function setPage(Page $page) {
+		$this->page = $page; 
+	}
+	
+	public function __debugInfo() {
+		$info = parent::__debugInfo();
+		foreach($this->wire('languages') as $language) {
+			$info[$language->name] = isset($this->data[$language->id]) ? $this->data[$language->id] : '';
+		}
+		return $info;	
+	}
+
+	/**
+	 * Allows iteration of the languages values
+	 *
+	 * Fulfills \IteratorAggregate interface.
+	 *
+	 * @return ArrayObject
+	 *
+	 */
+	public function getIterator() {
+		return new \ArrayObject($this->data);
 	}
 }
 

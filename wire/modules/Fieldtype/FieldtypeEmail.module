@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire E-Mail Fieldtype
@@ -8,12 +8,9 @@
  * For documentation about the fields used in this class, please see:  
  * /wire/core/Fieldtype.php
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -41,8 +38,9 @@ class FieldtypeEmail extends FieldtypeText {
 	}
 
 	public function getDatabaseSchema(Field $field) {
+		$len = $this->wire('database')->getMaxIndexLength();
 		$schema = parent::getDatabaseSchema($field); 
-		$schema['data'] = "varchar(255) NOT NULL default ''";
+		$schema['data'] = "varchar($len) NOT NULL default ''";
 		return $schema;
 	}
 

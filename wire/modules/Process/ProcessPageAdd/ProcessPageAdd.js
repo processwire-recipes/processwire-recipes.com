@@ -2,7 +2,7 @@ $(document).ready(function() {
 
 	$("#select_parent_submit").hide();
 	$("#select_parent_id").change(function() {
-		val = $(this).val();
+		var val = $(this).val();
 		if(val > 0) $("#select_parent_submit").click();
 	});	
 
@@ -69,5 +69,23 @@ $(document).ready(function() {
 		existsTimer = setTimeout(function() { checkExists(); }, 250); 
 	}); 
 
+	// in multi-lang environment when some templates have 'noLang' option set, 
+	// we hide language tabs/inputs when such a template is selected
+	if($(".langTabs").length) {
+		$("#template").change(function() {
+			var $option = $(this).find("option[value=" + $(this).val() + "]");
+			if(parseInt($option.attr('data-nolang')) > 0) {
+				hideLanguageTabs();
+			} else {
+				unhideLanguageTabs();
+			}
+		}).change();
+	}
+
+	$(".InputfieldPageName .LanguageSupport input[type=text]").on('blur', function() {
+		if($(this).val().length == 0) return;
+		var $checkbox = $(this).next('label').children('input'); 
+		if(!$checkbox.is(":checked")) $checkbox.attr('checked', 'checked');
+	});
 
 });

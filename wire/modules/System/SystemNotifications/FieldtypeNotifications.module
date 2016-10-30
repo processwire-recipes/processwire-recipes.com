@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * A field that stores notifications 
@@ -25,7 +25,7 @@ class FieldtypeNotifications extends FieldtypeMulti {
 	 *
 	 */
 	public function getInputfield(Page $page, Field $field) {
-		return new InputfieldWrapper();
+		return $this->wire(new InputfieldWrapper());
 	}
 
 	/**
@@ -33,7 +33,7 @@ class FieldtypeNotifications extends FieldtypeMulti {
 	 *
 	 */
 	public function getBlankValue(Page $page, Field $field) {
-		$notifications = new NotificationArray($page);
+		$notifications = $this->wire(new NotificationArray($page));
 		$notifications->setTrackChanges(true); 
 		return $notifications; 
 	}
@@ -60,8 +60,8 @@ class FieldtypeNotifications extends FieldtypeMulti {
 	
 		// create new Notification objects from each item in the array
 		foreach($value as $v) {
-			$notification = new Notification();
-			$notification->title = $v['title']; // note we're converting 'data' to 'date'
+			$notification = $this->wire(new Notification());
+			$notification->title = $v['title'];
 			$notification->flags = $v['flags']; 
 			$notification->created = $v['created']; 
 			$notification->modified = $v['modified']; 
@@ -94,7 +94,7 @@ class FieldtypeNotifications extends FieldtypeMulti {
 			if(!$page || !$page->email) continue; 
 			$of = $page->of();
 			$page->of(false);
-			$mail = wireMail(); 	
+			$mail = $this->wire('mail')->new();
 			$mail->to($page->email); 
 			if($notification->emailFrom) $mail->from($notification->emailFrom); 
 			$mail->subject($notification->title . " (" . $this->wire('config')->httpHost . ")");

@@ -1,16 +1,26 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Page Auto Completion select widget
  *
  * This Inputfield connects the jQuery UI Autocomplete widget with the ProcessWire ProcessPageSearch AJAX API.
  *
- * ProcessWire 2.x 
- * Copyright (C) 2012 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * @property int $parent_id Limit results to this parent, or if combined with findPagesSelector, the search is performed as $pages->get($parent_id)->find() rather than $pages->find().
+ * @property int $template_id Limit results to pages using this template.
+ * @property string $labelFieldName Field to display in the results. (default=title)
+ * @property string $labelFieldFormat Format string to display in the results, overrides labelFieldName when used (default=blank).
+ * @property string $searchFields Field(s) to search for text. Separate multiple by a space. (default=title)
+ * @property string $operator Selector operator to use in performing the search (default: %=)
+ * @property string $findPagesSelector Optional selector to use for finding pages (default=blank)
+ * @property int $maxSelectedItems Maximum number of items that may be selected (0=unlimited, default).
+ * @property bool $useList Whether or not to use a separate selected list. If false specified, selected item will be populated directly to the input. (default=true)
+ * @property bool $allowAnyValue Allow any value to stay in the input, even if not selectable? (default=false)
+ * @property string $disableChars Autocomplete won't be triggered if input contains any of the characters in this string. (default=blank)
+ * @property bool $useAndWords When true, each word will be isolated to a separate searchFields=searchValue, which enables it to duplicate ~= operator behavior while using a %= operator (default=false).
+ * @property int $lang_id Force use of this language for results
  *
  */
 class InputfieldPageAutocomplete extends Inputfield implements InputfieldHasArrayValue {
@@ -19,7 +29,7 @@ class InputfieldPageAutocomplete extends Inputfield implements InputfieldHasArra
 		return array(
 			'title' => __('Page Auto Complete', __FILE__), // Module Title
 			'summary' => __('Multiple Page selection using auto completion and sorting capability. Intended for use as an input field for Page reference fields.', __FILE__), // Module Summary
-			'version' => 103,
+			'version' => 111,
 			);
 	}
 
@@ -34,11 +44,14 @@ class InputfieldPageAutocomplete extends Inputfield implements InputfieldHasArra
 		// the search is performed as $pages->get($parent_id)->find() rather than $pages->find()
 		$this->set('parent_id', 0); 
 
-		// limit results to pagse using this template
+		// limit results to pages using this template
 		$this->set('template_id', 0); 
 
 		// field to display in the results
 		$this->set('labelFieldName', 'title'); 
+		
+		// format string to display in the results (instead of labelFieldName, when used)
+		$this->set('labelFieldFormat', '');
 
 		// field(s) to search for text, separate multiple by a space
 		$this->set('searchFields', 'title'); 
@@ -51,6 +64,25 @@ class InputfieldPageAutocomplete extends Inputfield implements InputfieldHasArra
 	
 		// maximum number of items that may be selected
 		$this->set('maxSelectedItems', 0); 
+	
+		// whether or not to use the selection list
+		// if not used, selected value will be populated directly to input
+		$this->set('useList', true); 
+	
+		// allow a non-selectable value to stay in the autocomplete input? 
+		// useful for situations where autocomplete might be used for collection of other values
+		// like when used with ProcessPageEditLink
+		$this->set('allowAnyValue', false);
+	
+		// autocomplete won't be triggered if input contains any characters present in this string
+		$this->set('disableChars', ''); 
+	
+		// when true, each word will be isolated to a separate searchFields=searchValue, which 
+		// enables it to duplicate ~= operator behavior while using a %= operator. 
+		$this->set('useAndWords', false); 
+	
+		// Force Language when applicable
+		$this->set('lang_id', 0);
 	}
 
 	/**
@@ -59,11 +91,14 @@ class InputfieldPageAutocomplete extends Inputfield implements InputfieldHasArra
 	 */
 	protected function ___renderListItem($label, $value, $class = '') {
 		if($class) $class = " $class";
-		$out = 	"\n<li class='ui-state-default$class'>" . 
-			"<span class='ui-icon ui-icon-arrowthick-2-n-s'></span>" . 
+		if(strpos($label, '&') !== false) $label = $this->wire('sanitizer')->unentities($label);
+		$label = $this->wire('sanitizer')->entities($label);
+		$out = 	
+			"\n<li class='ui-state-default$class'>" . 
+			"<i class='fa fa-sort fa-fw'></i> " . 
 			"<span class='itemValue'>$value</span>" . 
 			"<span class='itemLabel'>$label</span> " . 
-			"<a class='itemRemove' href='#'><span class='ui-icon ui-icon-trash'>" . $this->_('remove') . "</span></a>" . 
+			"<a class='itemRemove' href='#'><i class='fa fa-trash'></i></a>" . 
 			"</li>";
 		return $out; 
 	}
@@ -74,13 +109,17 @@ class InputfieldPageAutocomplete extends Inputfield implements InputfieldHasArra
 	 */
 	protected function ___renderList() { 
 
-		$out = "\n<ol id='{$this->id}_items' data-id='{$this->id}' data-name='{$this->name}'>" . $this->renderListItem("Label", "1", "itemTemplate"); 
-
+		$out = "\n<ol id='{$this->id}_items' data-id='{$this->id}' data-name='{$this->name}'>" . 
+			$this->renderListItem("Label", "1", "itemTemplate"); 
+		
 		foreach($this->value as $page_id) {
 			if(!$page_id) continue; 
 			$page = $this->pages->get((int) $page_id); 
 			if(!$page || !$page->id) continue; 
-			$out .= $this->renderListItem($page->get($this->labelFieldName), $page->id); 
+			$value = $this->labelFieldFormat ? $page->getText($this->labelFieldFormat, true, false) : $page->get($this->labelFieldName); 
+			$value = strip_tags($value);
+			if(!strlen($value)) $value = $page->get('title|name');
+			$out .= $this->renderListItem($value, $page->id); 
 		}
 
 		$out .= "\n</ol>";
@@ -93,69 +132,124 @@ class InputfieldPageAutocomplete extends Inputfield implements InputfieldHasArra
 	 */
 	public function ___render() {
 
-		$out = $this->renderList();
+		if($this->maxSelectedItems == 1) $this->useList = false;
+		$out = $this->useList ? $this->renderList() : '';
 		$value = implode(',', $this->value); 
 		$url = $this->getAjaxUrl();
 
 		// convert our list of search fields to a CSV string for use in the ProcessPageSearch query
 		$searchField = '';
-		foreach(explode(' ', $this->searchFields) as $key => $name) {
-			$name = wire('sanitizer')->fieldName(trim($name, ',| '));	
-			if(!$name) continue; 
-			$searchField .= ($searchField ? ',' : '') . $name; 
+		$searchFields = str_replace(array(',', '|'), ' ', $this->searchFields);
+		foreach(explode(' ', $searchFields) as $key => $name) {
+			$name = trim($name); 
+			// @esrch pr#994 --
+			if(strpos($name, '.')) {
+				list($name, $subname) = explode('.', $name);
+				$name = $this->wire('sanitizer')->fieldName($name);
+				$subname = $this->wire('sanitizer')->fieldName($subname);
+				if($name && $subname) $name .= "-$subname";
+				// -- pr#994
+			} else {
+				$name = $this->wire('sanitizer')->fieldName($name);
+			}
+			if($name) $searchField .= ($searchField ? ',' : '') . $name; 
 		}
 
 		if(!$searchField) $searchField = 'title';
 		$addNote = $this->_('Hit enter to add as new item'); 
 		
-		$labelField = $this->labelFieldName; 
+		$labelField = $this->labelFieldFormat ? "autocomplete_$this->name" : $this->labelFieldName; 
 		$operator = $this->operator; 
 		$id = $this->id; 
 		$max = (int) $this->maxSelectedItems; 
+		$class = $this->useList ? 'has_list' : 'no_list';
+		if($this->useAndWords) $class .= " and_words";
+		if($this->allowAnyValue) $class .= " allow_any";
+		
+		$disableChars = $this->disableChars; 
+		if($disableChars) {
+			$hasDoubleQuote = strpos($disableChars, '"') !== false; 
+			$hasSingleQuote = strpos($disableChars, "'") !== false; 
+			if($hasDoubleQuote && $hasSingleQuote) {
+				$this->error("disableChars cannot have both double and single quotes"); 
+				$disableChars = str_replace('"', '', $disableChars); 
+			}
+			if($hasSingleQuote) $disableChars = "data-disablechars=\"$disableChars\" ";
+				else $disableChars = "data-disablechars='$disableChars' ";
+		}
+		
+		$attrs =
+			"data-max='$max' " . 
+			"data-url='$url' " . 
+			"data-label='" . $this->wire('sanitizer')->entities($labelField) . "' " . 
+			"data-search='$searchField' " . 
+			"data-operator='$operator'";
+		
+		$textValue = '';
+		$remove = '';
+		if(!$this->useList) { 
+			if(count($this->value)) {
+				$item = $this->wire('pages')->getById($this->value)->first();
+				if($item && $item->id) {
+					$textValue = $this->labelFieldFormat ? $item->getText($this->labelFieldFormat, true, false) : $item->get($labelField);
+					if(!strlen($textValue)) $textValue = $item->get('title|name');
+					$textValue = strip_tags($textValue);
+					if(strpos($textValue, '&') !== false) $textValue = $this->wire('sanitizer')->unentities($textValue);
+					$textValue = $this->wire('sanitizer')->entities($textValue);
+				}
+			}
+			$remove = "<i class='fa fa-fw fa-times-circle InputfieldPageAutocompleteRemove'></i>";
+		}
+		
+		$addingLabel = $this->wire('sanitizer')->entities1($this->_('New item:'));
 		
 		$out .= <<< _OUT
 
 		<p>
-		<input type='hidden' name='{$this->name}[]' data-max='$max' id='$id' value='$value' />
-		<input type='text' data-parent-input='$id' id='{$id}_input' value='' />
-		<span class='ui-icon ui-icon-arrowreturn-1-e InputfieldPageAutocompleteStatus'></span>
-		<span class='notes InputfieldPageAutocompleteNote'><br />$addNote</span>
+		<input type='hidden' name='{$this->name}[]' id='$id' class='InputfieldPageAutocompleteData' value='$value' $attrs/>
+		<input type='text' data-parent-input='$id' id='{$id}_input' class='$class' value='$textValue' $disableChars/>
+		<i class='fa fa-fw fa-angle-double-right InputfieldPageAutocompleteStatus'></i>
+		$remove
+		<span class='notes InputfieldPageAutocompleteNote' data-adding='$addingLabel'><br />$addNote</span>
 		</p>
+		
+_OUT;
+	
+		/*
 		<script>
 		$(document).ready(function() { 
 			InputfieldPageAutocomplete.init('$id', '$url', '$labelField', '$searchField', '$operator');
+			console.log('initAutocomplete: $id');
 		}); 
 		</script>
-
-_OUT;
-
+		*/
 		return $out; 
 	}
 
-        /**
-         * Convert the CSV string provided in the $input to an array of ints needed for this fieldtype
-         *
-         */
-        public function ___processInput(WireInputData $input) {
-
-                parent::___processInput($input);
-
-                $value = $this->attr('value');
-                if(is_array($value)) $value = reset($value);
-                $value = trim($value);
-
-                if(strpos($value, ",") !== false) $value = explode(",", $value);
-                        else if($value) $value = array($value);
-                        else $value = array();
-
-                foreach($value as $k => $v) {
-                        $value[$k] = (int) $v;
-                }
-
-                $this->attr('value', $value);
-
-                return $this;
-        }
+	/**
+	 * Convert the CSV string provided in the $input to an array of ints needed for this fieldtype
+	 *
+	 */
+	public function ___processInput(WireInputData $input) {
+		
+		parent::___processInput($input);
+		
+		$value = $this->attr('value');
+		if(is_array($value)) $value = reset($value);
+		$value = trim($value);
+		
+		if(strpos($value, ",") !== false) $value = explode(",", $value);
+			else if($value) $value = array($value);
+			else $value = array();
+		
+		foreach($value as $k => $v) {
+			$value[$k] = (int) $v;
+		}
+		
+		$this->attr('value', $value);
+		
+		return $this;
+	}
 
 	/**
 	 * Get the AJAX search URL that will be queried (minus the actual term)
@@ -180,6 +274,10 @@ _OUT;
 		if($this->template_id) {
 			$selector .= ",templates_id={$this->template_id}";
 		}
+		
+		if($this->lang_id) {
+			$selector .= ",lang_id=" . (int) $this->lang_id;
+		}
 
 		// allow for full site matches
 		if(!strlen($selector)) $selector = "id>0";
@@ -196,8 +294,13 @@ _OUT;
 		}
 
 		// specify what label field we want to retrieve
-		$selector .= "&get={$this->labelFieldName}";
-
+		if($this->labelFieldFormat) {
+			$name = "autocomplete_" . $this->attr('name');
+			$this->wire('modules')->get('ProcessPageSearch')->setDisplayFormat($name, $this->labelFieldFormat, true);
+			$selector .= "&format_name=$name";
+		}
+		$selector .= "&get=" . $this->labelFieldName;
+		
 		return $this->config->urls->admin . "page/search/for?" . $selector;
 	}
 
@@ -208,9 +311,9 @@ _OUT;
 	 *
 	 */
 	public function ___install() {
-		$data = wire('modules')->getModuleConfigData('InputfieldPage'); 	
-		$data['inputfieldClasses'][] = $this->className(); 
-		wire('modules')->saveModuleConfigData('InputfieldPage', $data); 
+		$data = $this->wire('modules')->getModuleConfigData('InputfieldPage'); 	
+		$data['inputfieldClasses'][] = $this->className();
+		$this->wire('modules')->saveModuleConfigData('InputfieldPage', $data); 
 	}
 
 	/**
@@ -220,11 +323,11 @@ _OUT;
 	 *
 	 */
 	public function ___uninstall() {
-		$data = wire('modules')->getModuleConfigData('InputfieldPage'); 	
+		$data = $this->wire('modules')->getModuleConfigData('InputfieldPage'); 	
 		foreach($data['inputfieldClasses'] as $key => $value) {
 			if($value == $this->className()) unset($data['inputfieldClasses'][$key]); 
 		}
-		wire('modules')->saveModuleConfigData('InputfieldPage', $data); 
+		$this->wire('modules')->saveModuleConfigData('InputfieldPage', $data); 
 	}
 
 	/**
@@ -233,10 +336,11 @@ _OUT;
 	 */
 	public function ___getConfigInputfields() {
 		$inputfields = parent::___getConfigInputfields();
-		$fieldset = wire('modules')->get('InputfieldFieldset'); 
+		$fieldset = $this->wire('modules')->get('InputfieldFieldset'); 
 		$fieldset->label = $this->_('Autocomplete Advanced Options');
 		$fieldset->collapsed = Inputfield::collapsedYes; 
 
+		$recommended = $this->_('Recommended');
 		$field = $this->modules->get('InputfieldRadios');
 		$field->setAttribute('name', 'operator');
 		$field->label = $this->_('Autocomplete search operator');
@@ -244,7 +348,7 @@ _OUT;
 		$field->notes = $this->_("If you aren't sure what you want here, leave it set at the default: *="); 
 		$field->required = false;
 		$field->addOption('*=', '*= ' . $this->_("Contains phrase or partial word (using fulltext index) - Recommended")); 
-		$field->addOption('%=', '%= ' . $this->_("Contains phrase or partial word (using LIKE)")); 
+		$field->addOption('%=', '%= ' . $this->_("Contains phrase or partial word (using LIKE)") . " - $recommended");
 		$field->addOption('~=', '~= ' . $this->_("Contains all the [full] words, in any order")); 
 		$field->addOption('^=', '^= ' . $this->_("Starts with word/phrase")); 
 		$field->addOption('$=', '$= ' . $this->_("Ends with word/phrase")); 
@@ -260,7 +364,7 @@ _OUT;
 		$field->collapsed = Inputfield::collapsedNo; 
 		$field->attr('value', $this->searchFields);
 		$notes = $this->_('Indexed text fields include:');
-		foreach(wire('fields') as $f) {
+		foreach($this->wire('fields') as $f) {
 			if(!$f->type instanceof FieldtypeText) continue; 
 			$notes .= ' ' . $f->name . ','; 
 		}

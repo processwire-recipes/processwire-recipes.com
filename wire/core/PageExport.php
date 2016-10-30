@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * Class PageExport
@@ -44,6 +44,7 @@ class PageExport extends Wire {
 			'modified' => $page->modified,
 			'modified_users_id' => $page->modified_users_id,
 			'modified_user' => $page->modifiedUser->name, 
+			'published' => $page->published,
 			'core_version' => $this->wire('config')->version, 
 			'export_time' => time(),
 			'data' => array(),
@@ -64,7 +65,7 @@ class PageExport extends Wire {
 		
 		if(is_null($data)) {
 			$data = $page;
-			$page = new Page();
+			$page = $this->wire('pages')->newPage();
 		}
 
 		if(empty($data['core_version'])) throw new WireException("Invalid import data"); 

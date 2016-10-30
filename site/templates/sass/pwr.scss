@@ -15,8 +15,77 @@
 @import "src/modules/_recipelist";
 @import "src/modules/_taglist";
 @import "src/modules/_welcome-box";
+@import "src/modules/_welcome-links";
 
 @import "src/navigation/_main";
 @import "src/navigation/_foot";
 
 @import "src/vendor/_highlightjs";
+
+@media screen and (max-width: 740px) {
+
+	.header-main__logo,
+	.nav-main,
+	.module-search,
+	.col-50,
+	.module-recipelist__tags {
+		width: 100%;
+		float: none;
+	}
+
+	.col-50 {
+		margin: 0;
+	}
+
+	.inner {
+		padding: 1rem;
+	}
+
+	.module-search {
+		margin-top: 2.5em;
+	}
+
+	.module-recipelist__tags {
+		padding: 0;
+		max-width: none;
+
+		li {
+			float: left;
+		}
+	}
+
+	.module-recipelist__tags a {
+		margin: 0 .25em .25em 0;
+	}
+
+	.module-taglist {
+		margin-top: .25em;
+	}
+}
+
+@media screen and (max-width: 480px) {
+
+	body {
+		font-size: 14px;
+	}
+
+	.header-main__logo {
+		font-size: 2em;
+	}
+
+	.module-search__query {
+		font-size: 16px;
+	}
+
+	.btn {
+		width: 100%;
+		float: none;
+		padding: .75rem;
+		line-height: 1;
+	}
+
+	.nav-foot li {
+		float: none;
+		margin: 0 0  0.5625rem;
+	}
+}

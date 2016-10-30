@@ -1,15 +1,13 @@
-<?php
+<?php 
 
 /**
  * Recent pages list for admin
  *
- * ProcessWire 2.x 
- * Copyright (C) 2014 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
  * 
  * @todo: make everything configurable
  * 
- * http://processwire.com
+ * https://processwire.com
  * 
  * Translatable labels:
  *
@@ -250,6 +248,7 @@ class ProcessRecentPages extends Process {
 			));
 			$items = $this->wire('pages')->find("$selector, limit=$this->itemLimit"); 
 			$sanitizer = $this->wire('sanitizer');
+			$title = $this->_('Recent pages');
 			foreach($items as $item) {
 				if(!$item->editable()) continue;	
 				$created = $item->created;
@@ -276,7 +275,7 @@ class ProcessRecentPages extends Process {
 			if(count($items)) { 
 				$out .= $table->render();
 			} else {
-				$out .= "<p>$this->labels[nothing]</p>";
+				$out .= "<p>" . $this->labels['nothing'] . "</p>";
 			}	
 		}
 		return $out; 

@@ -19,7 +19,7 @@ class TextformatterParsedown extends Textformatter {
     public static function getModuleInfo() {
         return array(
             'title' => 'Parsedown',
-            'version' => 10,
+            'version' => 20,
             'author' => 'Christian Raunitschka (owzim)',
             'summary' => "Better Markdown parser in PHP",
             'href' => "http://parsedown.org/",
@@ -27,9 +27,12 @@ class TextformatterParsedown extends Textformatter {
     }
 
     public function format(&$str) {
-        require_once("parsedown/Parsedown.php");
-        $parsedown = new Parsedown();
-        $str = $parsedown->text($str);
+        $str = $this->parse($str);
     }
 
+    public function parse($str) {
+        require_once("parsedown/Parsedown.php");
+        $parsedown = new Parsedown();
+        return $parsedown->text($str);
+    }
 }

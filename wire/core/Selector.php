@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Selector base type and implementation for various Selector types
@@ -8,17 +8,10 @@
  * This file provides the base implementation for a Selector, as well as implementation
  * for several actual Selector types under the main Selector class. 
  * 
- * @TODO should the individual Selector types be convereted to Modules?
- * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
-
-// require_once(PROCESSWIRE_CORE_PATH . "Selectors.php"); 
 
 /**
  * Selector maintains a single selector consisting of field name, operator, and value.
@@ -27,18 +20,38 @@
  *
  * Serves as the base class for the different Selector types (seen below this class). 
  * 
+ * @property string|array $field Field or fields present in the selector (can be string or array) [1]
+ * @property array $fields Fields that were present in selector (same as $field, but always array)
+ * @property string $operator Operator used by the selector [2]
+ * @property string|array $value Value or values present in the selector (can be string or array) [1]
+ * @property array $values Values that were present in selector (same as $value, but always array)
+ * @property bool $not Is this a NOT selector? (i.e. returns the opposite if what it would otherwise)
+ * @property string|null $group Group name for this selector (if field was prepended with a "group_name@")
+ * @property string $quote Type of quotes value was in, or blank if it was not quoted. One of: '"[{(
+ * @property string $str String value of selector
+ * @property null|bool $forceMatch When boolean, it forces match (true) or non-match (false). 
+ * 
+ * [1] The $field and $value properties may either be an array or string. As a result, we recommend
+ * accessing the $fields or $values properties (instead of $field or $value), because they are always
+ * return an array. 
+ * 
+ * [2] Operator is determined by the Selector class name, and thus may not be changed without replacing
+ * the entire Selector. 
+ * 
+ * 
  */
 abstract class Selector extends WireData {
 
 	/**
 	 * Given a field name and value, construct the Selector. 
 	 *
-	 * If the provided value is an array of values, then it is assumed this Selector may match any one of them (OR condition).
-	 *
-	 * If only one field is provided, and that field is prepended by an exclamation point, i.e. !field=something
+	 * If the provided $field is an array or pipe "|" separated string, Selector may match any of them (OR field condition)
+	 * If the provided $value is an array of pipe "|" separated string, Selector may match any one of them (OR value condition).
+	 * 
+	 * If only one field is provided as a string, and that field is prepended by an exclamation point, i.e. !field=something
 	 * then the condition is reversed. 
 	 *
-	 * @param string $field
+	 * @param string|array $field 
 	 * @param string|int|array $value 
 	 *
 	 */
@@ -55,12 +68,92 @@ abstract class Selector extends WireData {
 		$this->set('not', $not); 
 		$this->set('group', null); // group name identified with 'group_name@' before a field name
 		$this->set('quote', ''); // if $value in quotes, this contains either: ', ", [, {, or (, indicating quote type (set by Selectors class)
+		$this->set('forceMatch', null); // boolean true to force match, false to force non-match
 	}
 
 	public function get($key) {
 		if($key == 'operator') return $this->getOperator();
 		if($key == 'str') return $this->__toString();
+		if($key == 'values') {
+			$value = $this->value; 
+			if(is_array($value)) return $value; 
+			if(!is_object($value) && !strlen($value)) return array();
+			return array($value);
+		}
+		if($key == 'fields') {
+			$field = $this->field; 
+			if(is_array($field)) return $field;
+			if(!strlen($field)) return array();
+			return array($field); 
+		}
 		return parent::get($key); 
+	}
+
+	/**
+	 * Returns the selector field(s), optionally forcing as string or array
+	 * 
+	 * @param string $type Omit for automatic, or specify 'string' or 'array' to force return in that type
+	 * @return string|array
+	 * @throws WireException if given invalid type
+	 * 
+	 */
+	public function getField($type = '') {
+		$field = $this->field;
+		if($type == 'string') {
+			if(is_array($field)) $field = implode('|', $field);
+		} else if($type == 'array') {
+			if(!is_array($field)) $field = array($field);
+		} else if($type) {
+			throw new WireException("Unknown type '$type' specified to getField()");
+		}
+		return $field;
+	}
+
+	/**
+	 * Returns the selector value(s) with additional processing and forced type options
+	 * 
+	 * When the $type argument is not specified, this method may return a string, array or Selectors object. 
+	 * A Selectors object is only returned if the value happens to contain an embedded selector. 
+	 * 
+	 * @param string $type Omit for automatic, or specify 'string' or 'array' to force return in that type
+	 * @return string|array|Selectors
+	 * @throws WireException if given invalid type
+	 * 
+	 */
+	public function getValue($type = '') {
+		$value = $this->value; 
+		if($type == 'string') {
+			if(is_array($value)) $value = implode('|', $value);
+		} else if($type == 'array') {
+			if(!is_array($value)) $value = array($value);
+		} else if($this->quote == '[') {
+			if(is_string($value) && Selectors::stringHasSelector($value)) {
+				$value = $this->wire(new Selectors($value));
+			} else if($value instanceof Selectors) {
+				// okay
+			}
+		} else if($type) {
+			throw new WireException("Unknown type '$type' specified to getValue()");
+		}
+		return $value;
+	}
+
+	/**
+	 * Set a property of the Selector
+	 * 
+	 * @param string $key
+	 * @param mixed $value
+	 * @return $this
+	 * 
+	 */
+	public function set($key, $value) {
+		if($key == 'fields') return parent::set('field', $value);
+		if($key == 'values') return parent::set('value', $value); 
+		if($key == 'operator') {
+			$this->error("You cannot set the operator on a Selector: $this");
+			return $this;
+		}
+		return parent::set($key, $value); 
 	}
 
 	/**
@@ -97,6 +190,9 @@ abstract class Selector extends WireData {
 	 */
 	public function matches($value) {
 
+		$forceMatch = $this->get('forceMatch');
+		if(is_bool($forceMatch)) return $forceMatch;
+		
 		$matches = false;
 		$values1 = is_array($this->value) ? $this->value : array($this->value); 
 		$field = $this->field; 
@@ -104,7 +200,7 @@ abstract class Selector extends WireData {
 
 		// prepare the value we are comparing
 		if(is_object($value)) {
-			if($this->wire('languages') && $value instanceof LanguagesPageFieldValue) $value = (string) $value; 
+			if($this->wire('languages') && $value instanceof LanguagesValueInterface) $value = (string) $value; 
 				else if($value instanceof WireData) $value = $value->get($field);
 				else if($value instanceof WireArray && is_string($field) && !strpos($field, '.')) $value = (string) $value; // 123|456|789, etc.
 				else if($value instanceof Wire) $value = $value->$field; 
@@ -167,6 +263,8 @@ abstract class Selector extends WireData {
 	 *
 	 */
 	protected function evaluate($matches) {
+		$forceMatch = $this->get('forceMatch');
+		if(is_bool($forceMatch)) $matches = $forceMatch;
 		if($this->not) return !$matches; 
 		return $matches; 
 	}
@@ -327,7 +425,7 @@ class SelectorEnds extends Selector {
 	protected function match($value1, $value2) { 
 		$value2 = trim($value2); 
 		$value1 = substr($value1, -1 * strlen($value2));
-                return $this->evaluate(strcasecmp($value1, $value2) == 0);
+		return $this->evaluate(strcasecmp($value1, $value2) == 0);
 	}
 }
 

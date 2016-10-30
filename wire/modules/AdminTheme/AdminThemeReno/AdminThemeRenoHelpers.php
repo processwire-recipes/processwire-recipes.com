@@ -1,22 +1,19 @@
-<?php
+<?php 
 
 /**
  * AdminThemeRenoHelpers.php
  * 
  * Rendering helper functions for use with for AdminThemeReno
- * Copyright (C) 2014 by Tom Reno (Renobird)
+ * Copyright (C) 2015 by Tom Reno (Renobird)
  * http://www.tomrenodesign.com
  *
- * ProcessWire 2.x
- * Copyright (C) 2014 by Ryan Cramer
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- *
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  * 
  */
 
-require(wire('config')->paths->AdminThemeDefault . 'AdminThemeDefaultHelpers.php'); 
+require(realpath(__DIR__ . '/../AdminThemeDefault/AdminThemeDefaultHelpers.php')); 
 
 class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 
@@ -70,40 +67,143 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 	 * 
 	 * @return string
 	 * 
-	 * @todo: Renobird: the $userImg variable is currently unused--did you want to use that?
+	 */
+	public function renderTopNav() {
+
+		$items = array();
+		$class = '';
+		$user = $this->wire('user');
+		$config = $this->wire("config");
+		$adminTheme = $this->wire('adminTheme');
+		$fieldName = "avatar_field_" . $user->template->name;
+		$adminTheme->$fieldName != '' ?  $avatarField = $adminTheme->$fieldName : $avatarField = '';
+		$avatarField != '' ?  $imgField = $user->get($avatarField) : $imgField = '';
+		$avatar = "<i class='fa $adminTheme->profile'></i>";
+	
+		if($user->isLoggedin() && !$this->session->get('touch')) { 
+			if($config->debug && $user->isSuperuser()) {
+				$debugLabel = __('Debug Mode Tools', '/wire/templates-admin/debug.inc');
+				$items[] = array(
+					"class" => "",
+					"label" => "<i class='fa fa-bug'></i>",
+					"link" => "#",
+					"attrs" => "title='$debugLabel' onclick=\"$('#debug_toggle').click();return false;\"", 
+				);
+			}
+			if($this->wire('process') != 'ProcessPageList') {
+				$treeLabel = $this->_('Tree');
+				$items[] = array(
+					"class" => "",
+					"label" => "<i class='fa fa-sitemap'></i>",
+					"link" => $config->urls->admin . 'page/',
+					"attrs" => "class='pw-panel' " .
+						"data-tab-text='$treeLabel' " .
+						"data-tab-icon='sitemap' " .
+						"title='$treeLabel'"
+				);
+			}
+		}
+
+		// View site
+		$items[] = array(
+			"class" => "",
+			"label" => "<i class='fa {$adminTheme->home}'></i>",
+			"link" => $config->urls->root
+		);
+
+		// Search toggle
+		$items[] = array(
+			"class" => "search-toggle",
+			"label" => "<i class='fa fa-search'></i>",
+			"link" => "#"
+		);
+
+		// Superuser quick links
+		if ($this->user->isSuperuser()){
+			$items[] = array(
+				"class" => "superuser",
+				"label" => "<i class='fa fa-bolt'></i>",
+				"children" => array(
+					"<i class='fa fa-life-ring'></i> " . $this->_('Support Forums')  => array('http://processwire.com/talk/', 'target="_blank"'),
+					"<i class='fa fa-book'></i> " . $this->_('Documentation') => array('https://processwire.com/docs/', 'target="_blank"'),
+					"<i class='fa fa-github'></i> " . $this->_('Github Repo') => array('https://github.com/ryancramerdesign/ProcessWire/', 'target="_blank"'),
+					"<i class='fa fa-code'></i> " . $this->_('Cheatsheet')  => array('http://cheatsheet.processwire.com', 'target="_blank"'),
+					"<i class='fa fa-anchor'></i> " . $this->_('Captain Hook')  => array('http://processwire.com/api/hooks/captain-hook/', 'target="_blank"'),
+				)
+			);
+		}
+
+		// Avatar field for user information
+		if ($imgField != '') {
+			$class = 'avatar';
+			count($imgField) ? $img = $imgField->first() : $img = $imgField;
+			$userImg = $img->size(52,52); // render at 2x for hi-dpi (52x52 for 26x26)
+			$avatar = "<img src='$userImg->url' alt='$user->name' />";
+		}
+
+		// User information, profile, logout
+		$items[] = array(
+			"class" => "avatar",
+			"label" => "$avatar <span>" . $this->getDisplayName($user) . "</span>",
+			"children" => array(
+				"<i class='fa fa-user'></i> " . $this->_('Profile') => $config->urls->admin . "profile/",
+				"<i class='fa $adminTheme->signout'></i> " . $this->_('Logout') => $config->urls->admin . "login/logout/"
+			)
+		);
+
+		return $this->topNavItems($items);
+
+	}
+
+	/**
+	 * Render top navigation items (hookable)
+	 * 
+	 * @return string
 	 * 
 	 */
-	public function renderTopNavItems() {
-
-		$out = '';
-		$user = $this->wire('user');
-		$config = wire("config");
-		$adminTheme = $this->wire('adminTheme');
-		$adminTheme->avatar_field != '' ?  $imgField = $user->get($adminTheme->avatar_field) : $imgField = '';
-
-		if($imgField != '') {
-			count($imgField) ? $img = $imgField->first() : $img = $imgField;
-			$out .= "<li class='avatar'><a href='{$config->urls->admin}profile/'>";
-			$userImg = $img->size(52,52); // render at 2x for hi-dpi (52x52 for 26x26)
-			$out .= "<img src='$userImg->url' alt='$user->name' /> <span>$user->name</span>";
-			$out .= "</a></li>";
-
-		} else {
-			$title = $this->_('Profile');
-			$out .= "<li><a title='$title' href='{$config->urls->admin}profile/'><i class='fa fa-user'></i> <span>$user->name</span></a></li>";
-		}
+	public function ___topNavItems(array $items) {
 		
-		// view site
-		$out .= "<li><a href='{$config->urls->root}'><i class='fa {$adminTheme->home}'></i></a></li>";
+		$out = '';
+		$defaults = array(
+			"class" => "",
+			"label" => "<i class='fa fa-question-circle'></i>",
+			"link" => "#",
+			"attrs" => "",
+			"children" => false
+		);
 
-		// logout
-		$label = $this->_('Logout');
-		$out .= "<li><a title='$label' href='{$config->urls->admin}login/logout/'><i class='fa {$adminTheme->signout}'></i></a></li>";
+		foreach ($items as $item){
+
+			// Create variables for each default key.
+			// If $item contains a key listed in the default array, use that value, otherwise use the default.
+			foreach ($defaults as $key => $val){
+				array_key_exists($key, $item) ? ${$key} = $item[$key] : ${$key} = $val; 
+			}
+
+			// Add dropdown class if there are children
+			if($children) $class .= " dropdown";
+
+			$out .= "<li class='$class'><a href='$link' $attrs>$label</a>";
+				if (is_array($children)){
+					$out .= "<ul>";
+						foreach($children as $child_label => $child_link){
+							$attrs = '';
+							$current = ($this->wire('page')->path == $child_link) ? 'class="current"' : ''; // current class
+							if (is_array($child_link)){
+								$attrs = implode(" ", array_slice($child_link,1)); // any array items other than the 1st are treated as attrs
+								$child_link = $child_link[0]; // first item in array is the url
+							}
+							$out .= "<li><a href='$child_link' $current $attrs>$child_label</a></li>";
+						}
+					$out .= "</ul>";
+				}
+			$out .= "</li>";
+		}
 
 		return $out;
 
 	}
-	
+
 	/**
 	 * Render a side navigation items
 	 *
@@ -120,6 +220,10 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 		$modules = $this->wire('modules'); 
 		$showItem = $isSuperuser;
 		$children = $p->numChildren() ? $p->children("check_access=0") : array();
+		if($p->name == 'page' && !$children->has("name=list")) {
+			// +PW27: ensure the "Tree" page is shown if it is hidden
+			$children->prepend($p->child("name=list, include=hidden"));
+		}
 		$out = '';
 		$iconName = $p->name;
 		$icon = $this->wire('adminTheme')->$iconName;
@@ -157,11 +261,11 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 		$class = strpos($this->wire('page')->path, $p->path) === 0 ? 'current' : ''; // current class
 		$class .= count($children) > 0 ? " parent" : ''; // parent class
 		$title = $sanitizer->entities1((string) $this->_($p->get('title|name')));
-		$currentPagePath = $this->wire('page')->path;
+		$currentPagePath = $this->wire('page')->url; // use URL to support sub directory installs
 
 		$out .= "<li>";
 	
-		if(count($children)) {
+		if(count($children) && WireArray::iterable($children)) {
 
 			$out .= "<a href='$p->url' class='$class $p->name '><i class='fa {$icon}'></i> $title</a>"; 
 			$out .= "<ul>";
@@ -173,7 +277,8 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 					// $c is moduleInfo nav array
 					$moduleInfo = array();
 					if(isset($c['permission']) && !$this->wire('user')->hasPermission($c['permission'])) continue;
-					$class = strpos($currentPagePath, $p->path . $c['url']) === 0 ? 'current' : '';
+					$segments = $this->input->urlSegments ? implode("/", $this->input->urlSegments) . '/' : '';
+					$class = $currentPagePath . $segments == $p->path . $c['url'] ? 'current' : '';
 					$title = $sanitizer->entities1(__($c['label'], $textdomain));
 					$url = $p->url . $c['url'];
 					if(isset($c['navJSON'])) {
@@ -184,10 +289,20 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 					
 				} else {
 					// $c is a Page object
-					$class = strpos($currentPagePath, $c->path) === 0 ? 'current' : ''; // child current class
-					if(!$c->viewable()) continue;
+					if(!$c->process || !$c->viewable()) continue;
+					
+					$list = array(
+						$this->wire('config')->urls->admin . "page/",
+						$this->wire('config')->urls->admin . "page/edit/"
+					);
+					
+					in_array($currentPagePath, $list) ? $currentPagePath = $this->wire('config')->urls->admin . "page/list/" : '';
+					$class = strlen($currentPagePath) && strpos($currentPagePath, $c->url) === 0 ? 'current' : ''; // child current class
+					$name = $c->name;
+
 					$moduleInfo = $c->process ? $modules->getModuleInfo($c->process) : array();
-					$title = $sanitizer->entities1((string) $this->_($c->get('title|name')));
+					$title = $this->getPageTitle($c);
+					if(!strlen($title)) continue;
 					$url = $c->url;
 					// The /page/ and /page/list/ are the same process, so just keep them on /page/ instead. 
 					if(strpos($url, '/page/list/') !== false) $url = str_replace('/page/list/', '/page/', $url);
@@ -202,7 +317,7 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 					$quicklinks = $this->renderQuicklinks($c, array(), $title, $navJSON); 
 				} else if(!empty($moduleInfo['nav'])) {
 					$quicklinks = $this->renderQuicklinks($c, $moduleInfo['nav'], $title); 
-			}
+				}
 				
 				$icon = isset($moduleInfo['icon']) ? $moduleInfo['icon'] : '';
 				$toggle = $quicklinks ? "<i class='quicklink-open fa fa-bolt'></i>" : "";
@@ -227,6 +342,37 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 	}
 	
 	/**
+	 * Render the the user display name as specified in module config.
+	 *
+	 * @return string
+	 *
+	 */
+	
+	public function getDisplayName(User $user) {
+        
+        $out = '';
+        
+        $adminTheme = $this->wire('adminTheme');
+        $field_name = "userFields_". $user->template->name;
+        trim($adminTheme->$field_name) == '' ? $adminTheme->$field_name = 'name' : ''; // force to name field if empty
+        $userFields = explode(',', $adminTheme->$field_name);
+        
+        foreach($userFields as $f){
+            $f = trim($f);
+            if ($f == 'name'){
+                $out .= "{$user->name} "; // can't use wire('fields') to get name field
+            } else {
+                $field = $this->wire('fields')->get($f);
+                if($field instanceof Field && in_array($field->type, array('FieldtypeText', 'FieldtypeConcat', 'FieldtypePageTitle'))){
+                    $out .= $this->wire('sanitizer')->entities1($user->$f) . " ";
+				}
+            }
+        }
+
+        return rtrim($out, ' '); // clean up the trailing space. 
+    }
+
+	/**
 	 * Render all sidenav navigation items, ready to populate in ul#main-nav
 	 *
 	 * @return string
@@ -243,5 +389,4 @@ class AdminThemeRenoHelpers extends AdminThemeDefaultHelpers {
 		
 		return $out; 
 	}
-
 }
