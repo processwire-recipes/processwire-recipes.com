@@ -25,7 +25,6 @@ gulp.task('sass', function() {
 			style: 'compressed',
 			lineNumbers: false
 		}))
-		.pipe(autoprefixer("last 2 version", "ie 9"))
 		.pipe(concat(projectname + '.css'))
 		.pipe(gulp.dest(template_path + 'build/css'));
 });
@@ -35,4 +34,5 @@ gulp.task('watch', ['sass', 'js'], function() {
 	gulp.watch(template_path + 'js/**/*.js', ['js']);
 });
 
+gulp.task('default', ['watch']);
 gulp.task('build', ['sass', 'js']);

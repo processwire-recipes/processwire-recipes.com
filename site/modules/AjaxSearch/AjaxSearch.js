@@ -15,7 +15,7 @@ $(function(){
 
 	// build dom for ajax search results
 	// event listener on "keydown" to be able to prevent the default scrolling in browsers
-	$res = $("<div id='ajaxSearch'><div class='ajaxSearch_body'></div></div>").bind("keydown",function(e){
+	$res = $("<div id='ajaxSearch' aria-hidden='true'><div id='ajaxSearch_body' class='ajaxSearch_body'></div></div>").bind("keydown",function(e){
 			// escape key close results
 			if(e.which == 27) {
 				e.preventDefault();
@@ -80,7 +80,10 @@ $(function(){
 						if (value==$($this).val()) {
 							// insert search result to body
 							$res.find('.ajaxSearch_body').html(data);
-							if($res.is(':hidden')) $res.slideDown();
+							if($res.is(':hidden')) {
+								$res.slideDown();
+								$res.attr('aria-hidden', 'false');
+							}
 
 							// remove class for loader animation
 							$(search_input).removeClass("ajaxSearch_loader");
@@ -93,12 +96,12 @@ $(function(){
 
 		$('.ajaxSearch_close')
 			.on('click',function(){
-				$(this).closest('#ajaxSearch').fadeOut();
+				$(this).closest('#ajaxSearch').attr('aria-hidden', 'true').fadeOut();
 			});
 	}
 
 	// close popup on click outside
 	$(document).click(function(e){
-		if($(e.target).closest('#ajaxSearch').length == 0) $("#ajaxSearch").fadeOut();
+		if($(e.target).closest('#ajaxSearch').length == 0) $("#ajaxSearch").attr('aria-hidden', 'true').fadeOut();
 	});
 });

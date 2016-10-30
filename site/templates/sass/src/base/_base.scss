@@ -26,3 +26,13 @@ input:focus {
 	border: 1px solid $blue;
 	text-decoration: none;
 }
+
+.sr-only {
+	clip: rect(1px 1px 1px 1px);
+	clip: rect(1px, 1px, 1px, 1px);
+	height: 1px;
+	overflow: hidden;
+	position: absolute;
+	white-space: nowrap;
+	width: 1px;
+}
