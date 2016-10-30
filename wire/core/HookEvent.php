@@ -1,36 +1,35 @@
-<?php
+<?php 
 
 /**
  * ProcessWire HookEvent
  *
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  * 
- * http://processwire.com
- *
- */
-
-/**
  * Instances of HookEvent are passed to Hook handlers when their requested method has been called.
+ * 
+ * #pw-summary HookEvent is a type provided to hook functions with information about the event.
+ * #pw-body =
+ * ~~~~~~
+ * // Example
+ * $wire->addHookAfter('Pages::saved', function(HookEvent $event) {
+ *   $page = $event->arguments(0);
+ *   $event->message("You saved page $page->path"); 
+ * }); 
+ * ~~~~~~
+ * #pw-body
  *
  * HookEvents have the following properties available: 
  *
- * @property Wire $object Instance of the object where the Hook event originated. 
- * 
- * @property string $method The name of the method that was called to generate the Hook event. 
- * 
- * @property array $arguments A numerically indexed array of the arguments sent to the above mentioned method. 
- * 
+ * @property-read Wire|WireData|WireArray|Module $object Instance of the object where the Hook event originated. 
+ * @property-read string $method The name of the method that was called to generate the Hook event. 
+ * @property-read array $arguments A numerically indexed array of the arguments sent to the above mentioned method. 
  * @property mixed $return Applicable only for 'after' or ('replace' + 'before' hooks), contains the value returned by the above mentioned method. The hook handling method may modify this return value. 
- * 
- * @property bool $replace Set to boolean TRUE in a 'before' hook if you want to prevent execution of the original hooked function. In such a case, your hook is replacing the function entirely. Not recommended, so be careful with this.
- *
- * @property array $options An optional array of user-specified data that gets sent to the hooked function. The hook handling method may access it from $event->data. This array also includes all of the Wire:defaultHookOptions
- * 
- * @property string $id A unique identifier string that may be used with a call to Wire::removeHook()
- * 
- * @property string $when In an active hook, contains either the string 'before' or 'after', indicating whether it is executing before or after the hooked method. 
+ * @property bool $replace Set to boolean true in a 'before' hook if you want to prevent execution of the original hooked function. In such a case, your hook is replacing the function entirely. Not recommended, so be careful with this.
+ * @property array $options An optional array of user-specified data that gets sent to the hooked function. The hook handling method may access it from $event->data. Also includes all the default hook properties. 
+ * @property-read string $id A unique identifier string that may be used with a call to `Wire::removeHook()`.
+ * @property-read string $when In an active hook, contains either the string 'before' or 'after', indicating whether it is executing before or after the hooked method. 
+ * @property bool $cancelHooks When true, all remaining hooks will be cancelled, making this HookEvent the last one (be careful with this).
  *
  */
 class HookEvent extends WireData {
@@ -53,13 +52,32 @@ class HookEvent extends WireData {
 		$this->set('replace', false); 
 		$this->set('options', array()); 
 		$this->set('id', ''); 
+		$this->set('cancelHooks', false);
 	}
 
 	/**
 	 * Retrieve or set a hooked function argument
+	 * 
+	 * ~~~~~
+	 * // Retrieve first argument by index (0=first)
+	 * $page = $event->arguments(0);
+	 * 
+	 * // Retrieve array of all arguments
+	 * $arguments = $event->arguments();
+	 * 
+	 * // Retrieve argument by name
+	 * $page = $event->arguments('page'); 
+	 * 
+	 * // Set first argument by index
+	 * $event->arguments(0, $page);
+	 * 
+	 * // Set first argument by name
+	 * $event->arguments('page', $page); 
+	 * ~~~~~
 	 *
-	 * @param int $n Zero based number of the argument you want to retrieve, where 0 is the first. Omit to return array of all arguments. 
-	 *	May also be the string 'name' of the argument. 
+	 * @param int $n Zero based number of the argument you want to retrieve, where 0 is the first.
+	 *	 May also be a string containing the argument name. 
+	 *   Omit to return array of all arguments. 
 	 * @param mixed $value Value that you want to set to this argument, or omit to only return the argument.
 	 * @return array|null|mixed 
 	 *
@@ -78,7 +96,15 @@ class HookEvent extends WireData {
 	/**
 	 * Returns an array of all arguments indexed by name, or the value of a single specified argument
 	 *
-	 * Note: arguments('name') can also be used as a shorter synonym for argumentsByName('name');
+	 * Note: `$event->arguments('name')` can also be used as a shorter synonym for `$event->argumentsByName('name')`.
+	 * 
+	 * ~~~~~
+	 * // Get an array of all arguments indexed by name
+	 * $arguments = $event->argumentsByName();
+	 * 
+	 * // Get a specific argument by name
+	 * $page = $event->argumentsByName('page'); 
+	 * ~~~~~
 	 *
 	 * @param string $n Optional name of argument value to return. If not specified, array of all argument values returned.
 	 * @return mixed|array Depending on whether you specify $n
@@ -105,7 +131,6 @@ class HookEvent extends WireData {
 		}
 
 		return $argumentsByName;
-		
 	}
 
 
@@ -113,6 +138,8 @@ class HookEvent extends WireData {
 	 * Sets an argument value, handles the implementation of setting for the above arguments() function
 	 *
 	 * Only useful with 'before' hooks, where the argument can be manipulated before being sent to the hooked function.
+	 * 
+	 * #pw-internal 
 	 *
 	 * @param int|string Argument name or key
 	 * @param mixed $value
@@ -150,7 +177,7 @@ class HookEvent extends WireData {
 		if(isset(self::$argumentNames[$key])) return self::$argumentNames[$key];
 
 		$argumentNames = array();
-		$method = new ReflectionMethod($o, '___' . $m); 
+		$method = new \ReflectionMethod($o, '___' . $m); 
 		$arguments = $method->getParameters();
 
 		foreach($arguments as $a) {
@@ -161,6 +188,31 @@ class HookEvent extends WireData {
 		self::$argumentNames[$key] = $argumentNames; 
 
 		return $argumentNames; 
+	}
+
+	/**
+	 * Remove a hook by ID
+	 * 
+	 * To remove the hook that this event is for, call it with the $hookId argument as null or blank.
+	 * 
+	 * ~~~~~
+	 * // Remove this hook event, preventing it from executing again
+	 * $event->removeHook(null); 
+	 * ~~~~~
+	 * 
+	 * @param string|null $hookId
+	 * @return $this
+	 * 
+	 */
+	public function removeHook($hookId) {
+		if(empty($hookId)) {
+			if($this->object && $this->id) {
+				$this->object->removeHook($this->id);
+			}
+			return $this;
+		} else {
+			return parent::removeHook($hookId);
+		}
 	}
 
 	/**

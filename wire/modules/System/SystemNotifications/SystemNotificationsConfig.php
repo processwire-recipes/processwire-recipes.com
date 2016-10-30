@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * Configuration class for the SystemNotifications module
@@ -10,14 +10,22 @@ class SystemNotificationsConfig extends ModuleConfig {
 	const ghostPosLeft = 1;
 	const ghostPosRight = 2; 
 	
+	const placementCombined = 0; // notifications and notices bundled together
+	const placementSeparate = 1; // notifications are rendered separately from notices
+	const placementNone = 2; // notifications are not rendered
+	
 	public function getDefaults() {
 		
 		if(empty($this->systemUserName)) $this->systemUserName = $this->users->get($this->config->superUserPageID)->name;
 		
 		return array(
+			'disabled' => 0, 						// SystemNotifications disabled?
+			'placement' => self::placementCombined, // placement of notifications relative to notices
+			'reverse' => 0, 						// reverse default sort order?
 			'systemUserID' => 41,					// user that will receive system notifications
 			'systemUserName' => $this->systemUserName,	// user that will receive system notifications (name)
 			'activeHooks' => array(0, 1, 2), 		// Indexes of $this->systemHooks that are active
+			'trackEdits' => 1, 						// Track page edits?
 			'updateDelay' => 5000, 					// delay between ajax updates (in ms) 5000+ recommended
 			'iconMessage' => 'check-square-o',		// default icon for message notifications
 			'iconWarning' => 'exclamation-circle',	// default icon for warning notifications
@@ -44,10 +52,37 @@ class SystemNotificationsConfig extends ModuleConfig {
 
 		$form = parent::getInputfields();
 		$modules = $this->wire('modules');
-
-		$f = $modules->get('InputfieldName');
-		$f->attr('name', 'systemUserName');
-		$f->label = __('Name of user that receives system notifications');
+		$on = $this->_('On');
+		$off = $this->_('Off');
+		
+		$f = $modules->get('InputfieldRadios'); 
+		$f->attr('name', 'disabled');
+		$f->label = __('Notifications status'); 
+		$f->description = __('When turned off, notifications will not be rendered.'); 
+		$f->addOption(0, $on);
+		$f->addOption(1, $off);
+		$f->optionColumns = 1; 
+		$f->columnWidth = 33; 
+		$form->add($f);
+		
+		$f = $modules->get('InputfieldRadios'); 
+		$f->attr('name', 'trackEdits'); 
+		$f->label = __('Track page edits?');
+		$f->description = __('Notifies users when they try to edit a page that is already being edited.');
+		$f->addOption(1, $on);
+		$f->addOption(0, $off);
+		$f->optionColumns = 1; 
+		$f->columnWidth = 34;
+		$form->add($f); 
+		
+		$f = $modules->get('InputfieldRadios');
+		$f->attr('name', 'reverse');
+		$f->label = __('Notification order');
+		$f->description = __('Select what order the notifications should display in.'); 
+		$f->addOption(0, __('Newest to oldest'));
+		$f->addOption(1, __('Oldest to newest'));
+		$f->optionColumns = 1;
+		$f->columnWidth = 33;
 		$form->add($f);
 
 		$f = $modules->get('InputfieldCheckboxes');
@@ -58,6 +93,13 @@ class SystemNotificationsConfig extends ModuleConfig {
 		$f->addOption(1, __('User login success and failure'));
 		$f->addOption(2, __('User logout'));
 		$f->notes = __('These are primarily just examples of notifications for the purpose of demonstration.');
+		$f->columnWidth = 50; 
+		$form->add($f);
+		
+		$f = $modules->get('InputfieldName');
+		$f->attr('name', 'systemUserName');
+		$f->label = __('Name of user that receives system notifications');
+		$f->columnWidth = 50;
 		$form->add($f);
 
 		$f = $modules->get('InputfieldInteger');
@@ -74,22 +116,22 @@ class SystemNotificationsConfig extends ModuleConfig {
 		$f->columnWidth = 50;
 		$form->add($f);
 
-		$f = $modules->get('InputfieldText');
+		$f = $modules->get('InputfieldIcon');
 		$f->attr('name', 'iconMessage');
 		$f->label = __('Message icon');
-		$f->columnWidth = 33;
+		$f->prefixValue = false;
 		$form->add($f);
 
-		$f = $modules->get('InputfieldText');
+		$f = $modules->get('InputfieldIcon');
 		$f->attr('name', 'iconWarning');
 		$f->label = __('Warning icon');
-		$f->columnWidth = 33;
+		$f->prefixValue = false;
 		$form->add($f);
 
-		$f = $modules->get('InputfieldText');
+		$f = $modules->get('InputfieldIcon');
 		$f->attr('name', 'iconError');
 		$f->label = __('Error icon');
-		$f->columnWidth = 34;
+		$f->prefixValue = false;
 		$form->add($f);
 
 		$f = $modules->get('InputfieldInteger');
@@ -139,6 +181,16 @@ class SystemNotificationsConfig extends ModuleConfig {
 		$f->addOption(self::ghostPosRight, $this->_('Right'));
 		$f->columnWidth = 50;
 		$form->add($f);
+		
+		$f = $modules->get('InputfieldRadios');
+		$f->attr('name', 'placement');
+		$f->label = __('Runtime/single-request notices');
+		$f->addOption(self::placementCombined, __('Display as notifications'));
+		$f->addOption(self::placementSeparate, __('Leave them alone'));
+		$f->columnWidth = 50;
+		$form->add($f);
+		
+		include_once(dirname(__FILE__) . "/Notification.php"); 
 
 		$this->message('Example runtime message notification');
 		$this->message('Example debug message notification', Notification::flagDebug);

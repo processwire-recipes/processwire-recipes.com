@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire ModuleJS
@@ -10,12 +10,13 @@
  * 
  * See the Module interface (Module.php) for details about each method. 
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
  * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * @method ModuleJS use(string $name)
  *
  */
 
@@ -81,7 +82,7 @@ abstract class ModuleJS extends WireData implements Module {
 	 *
 	 * @param string $name
 	 * @param string $file
-	 * @return this
+	 * @return $this
 	 *
 	 */
 	public function addComponent($name, $file) {
@@ -93,7 +94,7 @@ abstract class ModuleJS extends WireData implements Module {
 	 * Add an array of optional components
 	 *
 	 * @param array $components
-	 * @return this
+	 * @return $this
 	 *
 	 */
 	public function addComponents(array $components) {
@@ -108,21 +109,35 @@ abstract class ModuleJS extends WireData implements Module {
 	public function init() {
 		
 		$class = $this->className();
-		$info = $this->wire('modules')->getModuleInfo($this, array('verbose' => false));
-		$version = (int) isset($info['version']) ? $info['version'] : 0;
-		
-		if($this->loadStyles && file_exists($this->config->paths->$class . "$class.css")) {
-			$this->config->styles->add($this->config->urls->$class . "$class.css?v=$version");
+		$config = $this->wire('config');
+	
+		$file = $config->paths->$class . "$class.css";
+		if($this->loadStyles && is_file($file)) {
+			$mtime = filemtime($file);
+			$this->config->styles->add($config->urls->$class . "$class.css?v=$mtime");
 		}
-		if($this->loadScripts && file_exists($this->config->paths->$class . "$class.js")) {
-			$this->config->scripts->add($this->config->urls->$class . "$class.js?v=$version"); 
+		
+		$file = $config->paths->$class . "$class.js"; 
+		$mtime = 0;
+		if($this->loadScripts && is_file($file)) {
+			$minFile = $config->paths->$class . "$class.min.js";
+			if(!$config->debug && is_file($minFile)) {
+				$mtime = filemtime($minFile);
+				$config->scripts->add($config->urls->$class . "$class.min.js?v=$mtime");
+			} else {
+				$mtime = filemtime($file);
+				$config->scripts->add($config->urls->$class . "$class.js?v=$mtime");
+			}
 		}
 
 		if(count($this->requested)) {
 			foreach($this->requested as $name) {
 				$url = $this->components[$name]; 
-				if(strpos($url, '/') === false) $url = $this->wire('config')->urls->$class . $url;
-				$url .= "?v=$version";
+				if(strpos($url, '/') === false) {
+					$mtime = filemtime($config->paths->$class . $url);
+					$url = $config->urls->$class . $url;
+				}
+				$url .= "?v=$mtime";
 				$this->wire('config')->scripts->add($url);
 			}
 			$this->requested = array();
@@ -135,13 +150,14 @@ abstract class ModuleJS extends WireData implements Module {
 	 * Use an extra named component
 	 *
 	 * @param $name
-	 * @return this
+	 * @return $this
 	 *
 	 */
 	public function ___use($name) {
 
 		$name = $this->wire('sanitizer')->name($name);
 		$class = $this->className();
+		$config = $this->wire('config');
 
 		if(!isset($this->components[$name])) {
 			$this->error("Unrecognized $class component requested: $name");
@@ -150,8 +166,13 @@ abstract class ModuleJS extends WireData implements Module {
 
 		if($this->initialized) {
 			$url = $this->components[$name];
-			if(strpos($url, '/') === false) $url = $this->wire('config')->urls->$class . $url;
-			$this->wire('config')->scripts->add($url);
+			$mtime = 0;
+			if(strpos($url, '/') === false) {
+				$file = $config->paths->$class . $url;
+				$url = $config->urls->$class . $url;
+				$mtime = filemtime($file);
+			}
+			$config->scripts->add($url . "?v=$mtime");
 		} else {
 			$this->requested[$name] = $name;
 		}

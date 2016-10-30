@@ -115,16 +115,16 @@
 			float: right; 
 			padding-right: 0.25em; 
 		}
-		i.toggle-icon {
-			padding-right: 0.5em; 
-			color: lighten($label-link-color, 60%); 
-			line-height: 1.7em; 
-		}
-
 		.ui-icon + .ui-icon,
 		i + i {
 			margin-right: 0.5em; 
 			margin-left: none; 
+		}
+		i.toggle-icon {
+			padding-right: 0.5em;
+			margin-right: 0;
+			color: lighten($label-link-color, 60%);
+			line-height: 1.7em;
 		}
 	}
 
@@ -211,7 +211,6 @@
 				border: none;
 				background: $item-header-bg; 
 				color: $item-header-color; 
-				padding: 0.25em 0.25em 0.25em 1.7em;
 
 				a {
 					color: $item-header-color; 
@@ -228,19 +227,12 @@
 					color: $item-header-color; 
 				}
 
-				.ui-icon {
-					margin-top: 3px; 
-				}
-
 				&.ui-state-error {
 					text-decoration: line-through; 
 					background: $error-bg; 
 					border: none; 
 				}
 
-				.InputfieldRepeaterTrash {
-					right: 2em; 
-				}
 			}
 
 			> .InputfieldContent {
@@ -279,8 +271,7 @@
 			border: none;
 			background: $item-header-bg; 
 			color: $item-header-color; 
-			padding-left: 0.25em; 
-			padding-right: 0.5em; 
+			padding: 0.5em;
 			cursor: move; 
 			font-weight: $normal-weight;
 
@@ -314,7 +305,7 @@
 
 		.InputfieldItemList {
 			/* nested item list */ 
-			.InputfieldItemHeader:not(:hover) {
+			.InputfieldItemHeader:not(:hover):not(.ui-state-error) {
 				/* lighten up nested item list headers use a different color */
 				background: $ui-state-default-bg; 
 				color: $ui-state-default-color; 

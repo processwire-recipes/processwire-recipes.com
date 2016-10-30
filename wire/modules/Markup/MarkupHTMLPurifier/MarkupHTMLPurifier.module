@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire HTML Purifier module
@@ -31,7 +31,7 @@ class MarkupHTMLPurifier extends WireData implements Module {
 		return array(
 			'title' => 'HTML Purifier', 
 			'summary' => 'Front-end to the HTML Purifier library.', 
-			'version' => 104, 
+			'version' => 105, 
 			'singular' => false, 
 			'autoload' => false, 
 			);
@@ -55,7 +55,7 @@ class MarkupHTMLPurifier extends WireData implements Module {
 	 */
 	public function __construct() {
 		require_once(dirname(__FILE__) . '/htmlpurifier/HTMLPurifier.standalone.php'); 
-		$this->settings = HTMLPurifier_Config::createDefault();
+		$this->settings = \HTMLPurifier_Config::createDefault();
 		$this->settings->autoFinalize = false;
 	}
 
@@ -66,6 +66,12 @@ class MarkupHTMLPurifier extends WireData implements Module {
 	public function init() {
 		$this->settings->set('Cache.SerializerPath', $this->getCachePath());
 		$this->settings->set('Attr.AllowedRel', array('nofollow'));
+		$this->settings->set('HTML.DefinitionID', 'html5-definitions');
+		$this->settings->set('HTML.DefinitionRev', 1);
+		if($def = $this->settings->maybeGetRawHTMLDefinition()) {
+			$def->addElement('figure', 'Block', 'Optional: (figcaption, Flow) | (Flow, figcaption) | Flow', 'Common');
+			$def->addElement('figcaption', 'Inline', 'Flow', 'Common');
+		}
 	}
 
 	/**
@@ -74,7 +80,7 @@ class MarkupHTMLPurifier extends WireData implements Module {
 	 */
 	protected function getCachePath()  {
 		$cachePath = $this->wire('config')->paths->cache . $this->className() . '/';
-		if(!is_dir($cachePath)) wireMkdir($cachePath); 
+		if(!is_dir($cachePath)) $this->wire('files')->mkdir($cachePath); 
 		return $cachePath;
 	}
 
@@ -95,7 +101,7 @@ class MarkupHTMLPurifier extends WireData implements Module {
 	 *
 	 */
 	public function getPurifier() {
-		if(is_null($this->purifier)) $this->purifier = new HTMLPurifier($this->settings); 	
+		if(is_null($this->purifier)) $this->purifier = new \HTMLPurifier($this->settings); 	
 		return $this->purifier; 
 	}
 
@@ -107,7 +113,18 @@ class MarkupHTMLPurifier extends WireData implements Module {
 	 *
 	 */
 	public function purify($html) {
-		return $this->getPurifier()->purify($html); 
+		
+		// prepare markup for things that HTMLPurifier doesn't support
+		$hasTel = strpos($html, 'href="tel:') !== false;
+		if($hasTel) $html = str_replace('href="tel:', 'href="tel//:', $html);
+	
+		// purify
+		$html = $this->getPurifier()->purify($html);
+	
+		// finish markup for things that HTMLPurifier doesn't support
+		if($hasTel) $html = str_replace('href="tel//:', 'href="tel:', $html);
+		
+		return $html;
 	}
 
 	/**

@@ -1,16 +1,13 @@
-<?php
+<?php 
 
 require_once(dirname(__FILE__) . '/FieldtypeLanguageInterface.php'); 
 
 /**
  * Multi-language capable text field
  *
- * ProcessWire 2.x 
- * Copyright (C) 2011 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -37,32 +34,32 @@ class FieldtypeTextLanguage extends FieldtypeText implements FieldtypeLanguageIn
 			// convert it to a LanguagesPageFieldValue
 			$str = (string) $value; 
 			$value = $page->getUnformatted($field->name); 
-			if(is_string($value)) $value = new LanguagesPageFieldValue($value); // #98
-			$value->setLanguageValue(wire('user')->language->id, $str); 
+			if(is_string($value)) $value = new LanguagesPageFieldValue($page, $field, $value); // #98
+			$value->setLanguageValue($this->wire('user')->language->id, $str); 
 		}
 		return $value; 
 	}
 
-        /**
-         * Return the database schema in specified format
-         *
-         */
-        public function getDatabaseSchema(Field $field) {
-	 
-			$schema = parent::getDatabaseSchema($field);
-			$languageSupport = wire('modules')->get('LanguageSupport'); 
+	/**
+	 * Return the database schema in specified format
+	 *
+	 */
+	public function getDatabaseSchema(Field $field) {
 	
-			// note that we use otherLanguagePageIDs rather than wire('languages') because
-			// it's possible that this method may be called before the languages are known 
-			foreach($languageSupport->otherLanguagePageIDs as $languageID) {
-				// $schema['data' . $languageID] = $schema['data'];
-				$schema['data' . $languageID] = 'text';
-				$schema['keys']["data_exact{$languageID}"] = "KEY `data_exact{$languageID}` (`data{$languageID}`(255))";
-				$schema['keys']["data{$languageID}"] = "FULLTEXT KEY `data{$languageID}` (`data{$languageID}`)";
-			}
-
-			return $schema;
-        }
+		$schema = parent::getDatabaseSchema($field);
+		$languageSupport = $this->wire('modules')->get('LanguageSupport'); 
+	
+		// note that we use otherLanguagePageIDs rather than wire('languages') because
+		// it's possible that this method may be called before the languages are known 
+		foreach($languageSupport->otherLanguagePageIDs as $languageID) {
+			// $schema['data' . $languageID] = $schema['data'];
+			$schema['data' . $languageID] = 'text';
+			$schema['keys']["data_exact{$languageID}"] = "KEY `data_exact{$languageID}` (`data{$languageID}`(250))";
+			$schema['keys']["data{$languageID}"] = "FULLTEXT KEY `data{$languageID}` (`data{$languageID}`)";
+		}
+	
+		return $schema;
+	}
 
 	/**
 	 * Format value for output, basically typcasting to a string and sending to textformatters from FieldtypeText

@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 class ProcessFieldExportImport extends Wire {
 	
@@ -190,13 +190,14 @@ class ProcessFieldExportImport extends Wire {
 			}
 
 			$markup = $this->modules->get('InputfieldMarkup');
+			$markup->addClass('InputfieldCheckboxes');
 			$markup->value = "";
 			$fieldset->add($markup);
 			
 			$savedFieldData = $field->getExportData();
 			try {
 				$changes = $field->setImportData($fieldData);
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$this->error($e->getMessage());
 			}
 			$field->setImportData($savedFieldData); // restore
@@ -274,6 +275,7 @@ class ProcessFieldExportImport extends Wire {
 				($no && $numChangesField ? "<span class='detail'>(" . $this->_('click yes to show changes') . ")</span>" : "") .
 				"</p>";
 
+			$f->renderReady();
 			$markup->value .= $f->render();
 			$data[$name] = $fieldData;
 		}
@@ -366,7 +368,7 @@ class ProcessFieldExportImport extends Wire {
 					$numChangedFields++;
 					$this->message($this->_('Modified field') . ' - ' . $name); 
 				}
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$this->error($e->getMessage());
 			}
 			

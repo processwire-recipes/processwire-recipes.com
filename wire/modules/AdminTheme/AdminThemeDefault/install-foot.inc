@@ -1,4 +1,4 @@
-<?php if(!defined("PROCESSWIRE_INSTALL")) die(); ?>
+<?php  if(!defined("PROCESSWIRE_INSTALL")) die(); ?>
 <?php if($formAction) echo "</form>"; ?>
 
 		</div>
@@ -6,7 +6,7 @@
 
 	<div id="footer" class="footer">
 		<div class="container">
-			<p>ProcessWire 2.5 &copy; 2014</p>
+			<p>ProcessWire <?php echo PROCESSWIRE_INSTALL; ?> &copy; 2016</p>
 		</div>
 	</div><!--/#footer-->
 

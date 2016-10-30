@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 class ProcessTemplateExportImport extends Wire {
 	
@@ -13,7 +13,7 @@ class ProcessTemplateExportImport extends Wire {
 	}
 	
 	protected function getNewItem() {
-		$item = new Template();
+		$item = $this->wire(new Template());
 		return $item;
 	}
 
@@ -215,7 +215,7 @@ class ProcessTemplateExportImport extends Wire {
 
 			if(!$template) {
 				$new = true;
-				$template = new Template();
+				$template = $this->wire(new Template());
 				$template->name = $name;
 				$fieldset->icon = 'sun-o';
 				$fieldset->label .= " [" . $this->_('new') . "]";
@@ -224,6 +224,7 @@ class ProcessTemplateExportImport extends Wire {
 			}
 
 			$markup = $this->modules->get('InputfieldMarkup');
+			$markup->addClass('InputfieldCheckboxes');
 			$markup->value = "";
 			$fieldset->add($markup);
 			
@@ -231,7 +232,7 @@ class ProcessTemplateExportImport extends Wire {
 			try {
 				$changes = $template->setImportData($templateData);
 				$template->setImportData($savedTemplateData); // restore
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$this->error($e->getMessage());
 			}
 
@@ -400,7 +401,7 @@ class ProcessTemplateExportImport extends Wire {
 					$numChangedItems++;
 					$this->message($this->_('Modified:') . " $name"); 
 				}
-			} catch(Exception $e) {
+			} catch(\Exception $e) {
 				$this->error($e->getMessage());
 			}
 			

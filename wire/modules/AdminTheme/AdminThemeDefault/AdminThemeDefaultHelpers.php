@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * AdminThemeDefaultHelpers.php
@@ -23,7 +23,7 @@ class AdminThemeDefaultHelpers extends WireData {
 			$this->error('Error test debug', Notice::debug);
 			$this->error('Error test markup <a href="#">example</a>', Notice::allowMarkup);
 		}
-		parent::__construct();
+		$this->wire('modules')->get('JqueryUI')->use('panel');
 	}
 
 	/**
@@ -34,7 +34,12 @@ class AdminThemeDefaultHelpers extends WireData {
 	 * 
 	 */
 	public function _($text) {
-		return __($text, $this->wire('config')->paths->root . 'wire/templates-admin/default.php'); 
+		static $translate = null;
+		if(is_null($translate)) $translate = $this->wire('languages') !== null;
+		if($translate === false) return $text;
+		$value = __($text, $this->wire('config')->paths->root . 'wire/templates-admin/default.php'); 
+		if($value === $text) $value = parent::_($text);
+		return $value;
 	}
 
 	/**
@@ -58,12 +63,38 @@ class AdminThemeDefaultHelpers extends WireData {
 	 *
 	 */
 	public function renderBreadcrumbs($appendCurrent = true) {
+		
 		$out = '';
-		foreach($this->wire('breadcrumbs') as $breadcrumb) {
-			$title = $this->wire('sanitizer')->entities1($this->_($breadcrumb->title));
-			$out .= "<li><a href='{$breadcrumb->url}'>{$title}</a><i class='fa fa-angle-right'></i></li>";
+		$loggedin = $this->wire('user')->isLoggedin();
+		$touch = $this->wire('session')->get('touch');
+		$separator = "<i class='fa fa-angle-right'></i>";
+	
+		if(!$touch && $loggedin && $this->className() == 'AdminThemeDefaultHelpers') {
+			
+			if($this->wire('config')->debug && $this->wire('user')->isSuperuser()) {
+				$label = __('Debug Mode Tools', '/wire/templates-admin/debug.inc');
+				$out .=
+					"<li><a href='#' title='$label' onclick=\"$('#debug_toggle').click();return false;\">" .
+					"<i class='fa fa-bug'></i></a>$separator</li>";
+			}
+
+			if($this->wire('process') != 'ProcessPageList') {
+				$url = $this->wire('config')->urls->admin . 'page/';
+				$tree = $this->_('Tree');
+				$out .=
+					"<li><a class='pw-panel' href='$url' data-tab-text='$tree' data-tab-icon='sitemap' title='$tree'>" .
+					"<i class='fa fa-sitemap'></i></a>$separator</li>";
+			}
 		}
+		
+		foreach($this->wire('breadcrumbs') as $breadcrumb) {
+			$title = $breadcrumb->get('titleMarkup');
+			if(!$title) $title = $this->wire('sanitizer')->entities1($this->_($breadcrumb->title));
+			$out .= "<li><a href='{$breadcrumb->url}'>{$title}</a>$separator</li>";
+		}
+		
 		if($appendCurrent) $out .= "<li class='title'>" . $this->getHeadline() . "</li>";
+		
 		return $out; 
 	}
 
@@ -74,38 +105,21 @@ class AdminThemeDefaultHelpers extends WireData {
 	 *
 	 */
 	public function renderAdminShortcuts() {
-	
+
+		$page = $this->wire('page');
+		if($page->name != 'page' || $this->wire('input')->urlSegment1) return '';
 		$user = $this->wire('user');
-		$config = $this->wire('config');
-		
-		if($user->isGuest() || !$user->hasPermission('page-edit')) return '';
-		$url = $config->urls->admin . 'page/add/';
-		$out = '';
+		if($this->wire('user')->isGuest() || !$user->hasPermission('page-edit')) return '';
+		$module = $this->wire('modules')->getModule('ProcessPageAdd', array('noInit' => true));
+		$data = $module->executeNavJSON(array('getArray' => true));
 		$items = array();
 	
-		foreach($this->wire('templates') as $template) {
-			$parent = $template->getParentPage(true); 
-			if(!$parent) continue; 
-			if($parent->id) {
-				// one parent possible	
-				$qs = "?parent_id=$parent->id";
-			} else {
-				// multiple parents possible
-				$qs = "?template_id=$template->id";
-			}
-			$icon = $template->getIcon();
-			if(!$icon) $icon = "plus-circle";
-			$label = $template->getLabel();
-			$key = strtolower($label); 
-			$label = $this->wire('sanitizer')->entities1($label); 
-			if(isset($items[$key])) $key .= $template->name;	
-			$items[$key] = "<li><a href='$url$qs'><i class='fa fa-fw fa-$icon'></i>&nbsp;$label</a></li>";
+		foreach($data['list'] as $item) {
+			$items[] = "<li><a href='$data[url]$item[url]'><i class='fa fa-fw fa-$item[icon]'></i>&nbsp;$item[label]</a></li>";
 		}
-		
-		ksort($items); 
-		$out = implode('', $items); 
-		if(empty($out)) return '';
 	
+		if(!count($items)) return '';
+		$out = implode('', $items); 
 		$label = $this->getAddNewLabel();
 	
 		$out =	
@@ -126,6 +140,11 @@ class AdminThemeDefaultHelpers extends WireData {
 	 *
 	 */
 	public function renderAdminNotices($notices, array $options = array()) {
+
+		if($this->wire('user')->isLoggedin() && $this->wire('modules')->isInstalled('SystemNotifications')) {
+			$systemNotifications = $this->wire('modules')->get('SystemNotifications');
+			if(!$systemNotifications->placement) return;
+		}
 		
 		$defaults = array(
 			'messageClass' => 'NoticeMessage', // class for messages
@@ -189,7 +208,7 @@ class AdminThemeDefaultHelpers extends WireData {
 			$replacements = array(
 				'{class}' => $class, 
 				'{remove}' => $remove, 
-				'{icon}' => $icon,
+				'{icon}' => $notice->icon ? $notice->icon : $icon,
 				'{text}' => $text, 
 				);
 			
@@ -214,6 +233,11 @@ class AdminThemeDefaultHelpers extends WireData {
 			if(!empty($info['icon'])) $icon = $info['icon'];
 		}
 		if($p->page_icon) $icon = $p->page_icon; // allow for option of an admin field overriding the module icon
+		if(!$icon) switch($p->id) {
+			case 22: $icon = 'gears'; break; // Setup
+			case 21: $icon = 'plug'; break; // Modules
+			case 28: $icon = 'key'; break; // Access
+		}
 		if(!$icon && $p->parent->id != $this->wire('config')->adminRootPageID) $icon = 'file-o ui-priority-secondary';
 		if($icon) $icon = "<i class='fa fa-fw fa-$icon'></i>&nbsp;";
 		return $icon;
@@ -249,13 +273,7 @@ class AdminThemeDefaultHelpers extends WireData {
 		
 		if(!$showItem) return '';
 
-		if($numChildren && $p->name == 'page') {
-			// don't bother with a drop-down for "Pages" if user will only see 1 "tree" item, duplicating the tab
-			if($numChildren == 2 && !$isSuperuser && !$this->wire('user')->hasPermission('page-lister')) $children = array();
-			if($numChildren == 1) $children = array();
-		}
-
-		$class = strpos($this->wire('page')->path, $p->path) === 0 ? 'on' : '';
+		//$class = strpos($this->wire('page')->path, $p->path) === 0 ? 'on' : '';
 		$title = strip_tags((string) $p->title); 
 		if(!strlen($title)) $title = $p->name; 
 		$title = $this->_($title); // translate from context of default.php
@@ -268,8 +286,7 @@ class AdminThemeDefaultHelpers extends WireData {
 	
 		if(!$level && count($children)) {
 	
-			$class = trim("$class dropdown-toggle"); 
-			$out .= "<a href='$p->url' id='topnav-page-$p' data-from='topnav-page-{$p->parent}' class='$class'>$title</a>"; 
+			$out .= "<a href='$p->url' id='topnav-page-$p' data-from='topnav-page-{$p->parent}' class='page-$p- dropdown-toggle'>$title</a>"; 
 			$my = 'left-1 top';
 			if(in_array($p->name, array('access', 'page', 'module'))) $my = 'left top';
 			$out .= "<ul class='dropdown-menu topnav' data-my='$my' data-at='left bottom'>";
@@ -278,8 +295,9 @@ class AdminThemeDefaultHelpers extends WireData {
 			
 				if(!$c->process) continue; 
 				$moduleInfo = $this->wire('modules')->getModuleInfo($c->process); 
-				if($isSuperuser) $hasPermission = true; 
-					else if(isset($moduleInfo['permission'])) $hasPermission = $this->wire('user')->hasPermission($moduleInfo['permission']); 	
+				if($isSuperuser) $hasPermission = true;
+					else if(!empty($moduleInfo['permissionMethod'])) $hasPermission = $c->viewable();
+					else if(!empty($moduleInfo['permission'])) $hasPermission = $this->wire('user')->hasPermission($moduleInfo['permission']);
 					else $hasPermission = false;
 				
 				if(!$hasPermission) continue; 
@@ -295,10 +313,12 @@ class AdminThemeDefaultHelpers extends WireData {
 					
 				} else if(!empty($moduleInfo['useNavJSON'])) {
 					// has ajax items
+					$title = $this->getPageTitle($c);
+					if(!strlen($title)) continue;
 					$icon = $this->getPageIcon($c);
 					$out .=
 						"<li><a class='has-items has-ajax-items' data-from='topnav-page-$p' data-json='{$c->url}navJSON/' " .
-						"href='$c->url'>$icon" . $this->_($c->title) . "</a><ul></ul></li>";
+						"href='$c->url'>$icon$title</a><ul></ul></li>";
 
 				} else {
 					// regular nav item
@@ -313,19 +333,46 @@ class AdminThemeDefaultHelpers extends WireData {
 	
 		} else {
 			
-			$class = $class ? " class='$class'" : '';
+			//$class = $class ? " class='$class'" : '';
 			$url = $p->url;
 			$icon = $level > 0 ? $this->getPageIcon($p) : '';
 			
 			// The /page/ and /page/list/ are the same process, so just keep them on /page/ instead. 
 			if(strpos($url, '/page/list/') !== false) $url = str_replace('/page/list/', '/page/', $url); 
 			
-			$out .= "<a href='$url'$class>$icon$title</a>"; 
+			$out .= "<a class='page-id-$p-' href='$url'>$icon$title</a>"; 
 		}
 	
 		$out .= "</li>";
 	
 		return $out; 
+	}
+
+	/**
+	 * Get navigation title for the given page, return blank if page should not be shown
+	 * 
+	 * @param Page $c
+	 * @return string
+	 * 
+	 */
+	protected function getPageTitle(Page $c) {
+		if($c->name == 'add' && $c->parent->name == 'page') {
+			// ProcessPageAdd: avoid showing this menu item if there are no predefined family settings to use
+			$numAddable = $this->wire('session')->getFor('ProcessPageAdd', 'numAddable');
+			if($numAddable === null) {
+				$processPageAdd = $this->wire('modules')->getModule('ProcessPageAdd', array('noInit' => true));
+				if($processPageAdd) {
+					$addData = $processPageAdd->executeNavJSON(array("getArray" => true));
+					$numAddable = $addData['list'];
+				}
+			}
+			if(!$numAddable) return '';
+			$title = $this->getAddNewLabel();
+		} else {
+			$title = $this->_($c->title);
+		}
+		$title = $this->wire('sanitizer')->entities1($title);
+		return $title;
 	}
 
 	/**
@@ -363,6 +410,13 @@ class AdminThemeDefaultHelpers extends WireData {
 	 *
 	 */
 	public function renderTopNavItems() {
+		
+		$cache = $this->wire('session')->getFor('AdminThemeDefault', 'topnav');
+		if($cache) {
+			$this->renderTopNavMarkCurrent($cache);	
+			return $cache;
+		}
+		
 		$out = '';
 		$outMobile = '';
 		$outTools = '';
@@ -373,9 +427,16 @@ class AdminThemeDefaultHelpers extends WireData {
 		foreach($admin->children("check_access=0") as $p) {
 			if(!$p->viewable()) continue; 
 			$out .= $this->renderTopNavItem($p);
-			$outMobile .= "<li><a href='$p->url'>$p->title</a></li>";
+			
+			$title = $this->getPageTitle($p);
+			if(strlen($title)) {
+				$icon = $this->getPageIcon($p);
+				$outMobile .= "<li><a href='$p->url'>$icon$title</a></li>";
+			}
 		}
 	
+		
+		// @todo move outTools to separate hookable method, so new tools can be added
 		$outTools .=	
 			"<li><a href='{$config->urls->root}'><i class='fa fa-fw fa-eye'></i> " . 
 			$this->_('View Site') . "</a></li>";
@@ -404,53 +465,24 @@ class AdminThemeDefaultHelpers extends WireData {
 			"<li class='collapse-topnav-menu'><a href='$admin->url' class='dropdown-toggle'>" . 
 			"<i class='fa fa-lg fa-bars'></i></a>$outMobile</li>";
 		
+		$this->wire('session')->setFor('AdminThemeDefault', 'topnav', $out);
+		$this->renderTopNavMarkCurrent($out);	
 		return $out; 
 	}
-	
+
 	/**
-	 * Returns editable items of array('url to edit' => 'label) or booean if $checkOnly is true
-	 *
-	 * @param Page $page
-	 * @param bool $checkOnly Specify true to have this method return true/false if items are available.
+	 * Identify current "on" items in the topnav and add appropriate class
 	 * 
-	 * @return bool|array
-	 *
+	 * @param $out
+	 * 
 	 */
-	protected function ___getEditableItems(Page $page, $checkOnly = false) {
-
-		$items = array();
-		if(!$this->wire('user')->isSuperuser()) {
-			if($checkOnly) return false; 
-			return array();
+	protected function renderTopNavMarkCurrent(&$out) {
+		$page = $this->wire('page');
+		foreach($page->parents()->and($page) as $p) {
+			$out = str_replace("page-$p-", "page-$p- on", $out);
 		}
-
-		if($page->id == 11) {
-
-			if($checkOnly) return true;
-			
-			$url = $this->wire('config')->urls->admin . 'setup/template/edit?id=';
-			foreach($this->wire('templates') as $template) {
-				if($template->flags & Template::flagSystem) continue;
-				$items[$url . $template->id] = $template->name;
-			}
-			
-		} else if($page->id == 16) {
-
-			if($checkOnly) return true;
-			
-			$url = $this->wire('config')->urls->admin . 'setup/field/edit?id=';
-			foreach($this->wire('fields') as $field) {
-				if(($field->flags & Field::flagSystem) && $field->name != 'title') continue;
-				$items[$url . $field->id] = $field->name;
-			}
-			
-		} else {
-			if($checkOnly) return false; 
-		}
-
-		return $items;
 	}
-
+	
 	/**
 	 * Render the browser <title>
 	 *
@@ -459,7 +491,7 @@ class AdminThemeDefaultHelpers extends WireData {
 	 */
 	public function renderBrowserTitle() {
 		$browserTitle = $this->wire('processBrowserTitle'); 
-		if(!$browserTitle) $browserTitle = $this->_(strip_tags(wire('page')->get('title|name'))) . ' &bull; ProcessWire';
+		if(!$browserTitle) $browserTitle = $this->_(strip_tags($this->wire('page')->get('title|name'))) . ' &bull; ProcessWire';
 		if(strpos($browserTitle, '&') !== false) $browserTitle = html_entity_decode($browserTitle, ENT_QUOTES, 'UTF-8'); // we don't want to make assumptions here
 		$browserTitle = $this->wire('sanitizer')->entities($browserTitle, ENT_QUOTES, 'UTF-8'); 
 		if(!$this->wire('input')->get('modal')) {
@@ -479,10 +511,15 @@ class AdminThemeDefaultHelpers extends WireData {
 	 */
 	public function renderBodyClass() {
 		$page = $this->wire('page');
-		$bodyClass = $this->wire('input')->get->modal ? 'modal ' : '';
+		$modal = $this->wire('input')->get('modal');
+		$bodyClass = '';
+		if($modal) $bodyClass .= 'modal ';
+		if($modal == 'inline') $bodyClass .= 'modal-inline ';
 		$bodyClass .= "id-{$page->id} template-{$page->template->name} pw-init";
 		if($this->wire('config')->js('JqueryWireTabs')) $bodyClass .= " hasWireTabs";
-		return $bodyClass; 
+		if($this->wire('input')->urlSegment1) $bodyClass .= " hasUrlSegments";
+		$bodyClass .= ' ' . $this->wire('adminTheme')->getBodyClass(); 
+		return trim($bodyClass); 
 	}
 	
 	/**
@@ -508,7 +545,11 @@ class AdminThemeDefaultHelpers extends WireData {
 			'adminTemplates' => $config->urls->adminTemplates,
 			); 
 
-		return "var config = " . wireEncodeJSON($jsConfig, true, $config->debug);
+		$out = 
+			"var ProcessWire = { config: " . wireEncodeJSON($jsConfig, true, $config->debug) . " }; " . 
+			"var config = ProcessWire.config; "; // legacy support
+		
+		return $out;
 	}
 	
 	public function getAddNewLabel() {

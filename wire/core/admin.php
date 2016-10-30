@@ -1,11 +1,24 @@
-<?php
+<?php 
 
 /**
  * Controller for ProcessWire Admin
  *
- * This file is designed for inclusion by /site/templates/admin.php template and all the variables it references are from your template namespace. 
+ * This file is designed for inclusion by /site/templates/admin.php template and all the variables 
+ * it references are from your template namespace. 
  *
- * Copyright 2011 by Ryan Cramer
+ * Copyright 2016 by Ryan Cramer
+ * 
+ * @var Config $config
+ * @var User $user
+ * @var Modules $modules
+ * @var Pages $pages
+ * @var Page $page
+ * @var ProcessWire $wire
+ * @var WireInput $input
+ * @var Sanitizer $sanitizer
+ * @var Session $session
+ * @var Notices $notices
+ * 
  *
  */
 
@@ -15,6 +28,8 @@ header("X-Frame-Options: SAMEORIGIN");
 
 /**
  * Ensures a modal GET variable is retained through redirects, when appropriate
+ * 
+ * @param HookEvent $event
  *
  */
 function _hookSessionRedirectModal(HookEvent $event) {
@@ -25,7 +40,13 @@ function _hookSessionRedirectModal(HookEvent $event) {
 	}
 }
 
-function _checkForHttpHostError($config) {
+/**
+ * Check if the current HTTP host is recognized and generate error if not
+ * 
+ * @param Config $config
+ * 
+ */
+function _checkForHttpHostError(Config $config) {
 
 	$valid = false;
 	$httpHost = strtolower($config->httpHost); 
@@ -37,9 +58,10 @@ function _checkForHttpHostError($config) {
 	}
 
 	if(!$valid) $config->error(
-		"Unrecognized HTTP host: '" . htmlentities($_SERVER['HTTP_HOST'], ENT_QUOTES, 'UTF-8') . "' - " . 
-		"Please update your \$config->httpHosts setting in /site/config.php - " . 
-		"<a target='_blank' href='http://processwire.com/api/variables/config/#httphosts'>read more</a>", 
+		__('Unrecognized HTTP host:') . "'"  . 
+		htmlentities($_SERVER['HTTP_HOST'], ENT_QUOTES, 'UTF-8') . "' - " . 
+		__('Please update your $config->httpHosts setting in /site/config.php') . " - " . 
+		"<a target='_blank' href='http://processwire.com/api/variables/config/#httphosts'>" . __('read more') . "</a>", 
 		Notice::allowMarkup
 		); 
 }
@@ -55,11 +77,10 @@ $modules->get("JqueryUI");
 $pages->setOutputFormatting(false); 
 
 // setup breadcrumbs to current page, and the Process may modify, add to or replace them as needed
-$breadcrumbs = new Breadcrumbs();
+$breadcrumbs = $wire->wire('breadcrumbs', new Breadcrumbs()); 
 foreach($page->parents() as $p) {
 	if($p->id > 1) $breadcrumbs->add(new Breadcrumb($p->url, $p->get("title|name"))); 
 }
-Wire::setFuel('breadcrumbs', $breadcrumbs); 
 $controller = null;
 $content = '';
 
@@ -71,7 +92,7 @@ if($page->process && $page->process != 'ProcessPageView') {
 	try {
 
 		if($config->demo && !in_array($page->process, array('ProcessLogin'))) {
-			if(count($_POST)) $this->error("Features that use POST variables are disabled in this demo"); 
+			if(count($_POST)) $wire->error("Features that use POST variables are disabled in this demo"); 
 			foreach($_POST as $k => $v) unset($_POST[$k]); 
 			foreach($_FILES as $k => $v) unset($_FILES[$k]); 
 			$input->post->removeAll();
@@ -80,12 +101,19 @@ if($page->process && $page->process != 'ProcessPageView') {
 		$controller = new ProcessController(); 
 		$controller->setProcessName($page->process); 
 		$initFile = $config->paths->adminTemplates . 'init.php'; 
-		if(is_file($initFile)) include($initFile); 
-		if($input->get->modal) $session->addHookBefore('redirect', null, '_hookSessionRedirectModal'); 
+		if(is_file($initFile)) {
+			if(strpos($initFile, $config->paths->site) === 0) {
+				// admin themes in /site/modules/ may be compiled
+				$initFile = $wire->files->compile($initFile);
+			}
+			/** @noinspection PhpIncludeInspection */
+			include($initFile);
+		}
+		if($input->get('modal')) $session->addHookBefore('redirect', null, '_hookSessionRedirectModal'); 
 		$content = $controller->execute();
 
 	} catch(Wire404Exception $e) {
-		$this->error($e->getMessage()); 
+		$wire->error($e->getMessage()); 
 
 	} catch(WirePermissionException $e) {
 
@@ -93,21 +121,36 @@ if($page->process && $page->process != 'ProcessPageView') {
 			$content = $controller->jsonMessage($e->getMessage(), true); 
 
 		} else if($user->isGuest()) {
+			/** @var Process $process */
 			$process = $modules->get("ProcessLogin"); 
 			$content = $process->execute();
 		} else {
-			$this->error($e->getMessage()); 	
+			$wire->error($e->getMessage()); 	
 		}
 
-	} catch(Exception $e) {
+	} catch(\Exception $e) {
 		$msg = $e->getMessage(); 
-		if($config->debug) $msg .= "<pre>" . $e->getTraceAsString() . "</pre>";
-		$this->error($msg); 
-		if($controller && $controller->isAjax()) $content = $controller->jsonMessage($e->getMessage(), true); 
+		if($config->debug) {
+			$msg = $sanitizer->entities($msg);
+			$msg .= "<pre>\n" . 
+				__('DEBUG MODE BACKTRACE') . " " . 
+				"(\$config->debug == true):\n" . 
+				$sanitizer->entities($e->getTraceAsString()) . 
+				"</pre>";
+			$wire->error("$page->process: $msg", Notice::allowMarkup);
+		} else {
+			$wire->error($msg);
+		}
+		if($controller && $controller->isAjax()) {
+			$content = $controller->jsonMessage($e->getMessage(), true);
+			$wire->trackException($e, false);
+		} else {
+			$wire->trackException($e, true);
+		}
 	}
 
 } else {
-	$content = "<p>This page has no Process assigned.</p>";
+	$content = '<p>' . __('This page has no process assigned.') . '</p>';
 }
 
 if($config->ajax) {
@@ -116,10 +159,19 @@ if($config->ajax) {
 	ob_end_clean();
 }
 
+$config->js(array('httpHost', 'httpHosts'), true); 
+
 if($controller && $controller->isAjax()) {
 	if(empty($content) && count($notices)) $content = $controller->jsonMessage($notices->last()->text); 
 	echo $content; 
 } else {
-	require($config->paths->adminTemplates . 'default.php'); 
+	if(!strlen($content)) $content = '<p>' . __('The process returned no content.') . '</p>';
+	$adminThemeFile = $config->paths->adminTemplates . 'default.php';
+	if(strpos($adminThemeFile, $config->paths->site) === 0) {
+		$adminThemeFile = $wire->files->compile($adminThemeFile);
+	}
+	/** @noinspection PhpIncludeInspection */
+	require($adminThemeFile);
+	$session->removeNotices();
 }
 

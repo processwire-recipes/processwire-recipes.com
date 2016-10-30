@@ -5,7 +5,8 @@
 
 .ui-icon {
 	float: left; 
-	margin-right: 2px; 
+	margin-right: 2px;
+	margin-top: 4px;
 }
 
 .ui-widget {
@@ -44,6 +45,10 @@
 
 .content {
 
+	.ui-widget-content a {
+		color: $link-color;
+	}
+
 	li.ui-state-default,
 	.ui-widget-content li.ui-state-default {
 		background: $ui-state-default-bg; 
@@ -76,8 +81,11 @@
 }
 	.InputfieldForm .ui-accordion-header a,
 	.ui-accordion-header a,
-	#footer .ui-accordion-header a {
+	#debug .ui-accordion-header a {
 		color: $reverse-text-color;
+		.ui-priority-secondary {
+			color: transparentize($reverse-text-color, 0.3) !important;
+		}
 	}
 .ui-accordion-content,
 .content .InputfieldForm .ui-accordion-content,
@@ -131,7 +139,7 @@ p span.ui-state-error {
 
   .ui-dialog-titlebar {
 	    margin: 0;
-	    background: $masthead-bg !important;
+	    background: $masthead-secondary-bg !important;
 	    border: none;
 	    -webkit-border-radius: 0;
 	    -moz-border-radius: 0;
@@ -149,7 +157,7 @@ p span.ui-state-error {
 	.ui-dialog-buttonpane {
     	background: none;
     	border: none;
-    	margin-top: 0;
+    	margin-top: -5px;
 
     	button {
     		font-weight: bold !important;
@@ -166,8 +174,6 @@ p span.ui-state-error {
 	  padding: 5px 10px;
 	  font-weight: normal;
 	  color: $white;
-	  text-transform: uppercase;
-	  letter-spacing: 1px;
 	  font-size: 1.2em !important;
 	}
 
@@ -213,6 +219,11 @@ button.ui-button.ui-state-default,
 	font-size: 1em !important; 
 }
 
+.ui-button .ui-button-text > .ui-button-text {
+	// if ui-button-text class is doubled, don't let it double padding
+	padding: 0;
+}
+
 button.ui-button span {
 	text-shadow: none !important;
 }
@@ -229,6 +240,11 @@ button.ui-button.ui-priority-secondary,
 		background: $button-bg !important;
 		cursor: pointer !important;
 	}
+}
+
+button.ui-button .ui-priority-secondary,
+.ui-button .ui-priority-secondary {
+	color: rgba($button-color, 0.5) !important; 
 }
 
 .ui-button:hover, 
@@ -250,6 +266,31 @@ div + a > .ui-button {
 	margin-top: 1em;
 }
 
+button.ui-button.pw-button-dropdown-main {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+	margin-right: 0 !important;
+	.ui-button-text {
+		padding-right: 0.9em;
+	}
+	
+}
+button.ui-button.pw-button-dropdown-toggle {
+	outline: none !important;
+	margin-left: 0 !important;
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	border-left: 1px solid !important;
+	border-left-color: rgba(255,255,255,0.2) !important;
+	&:hover {
+		border-left-color: transparent !important;
+	}
+	.ui-button-text {
+		padding-left: 8px;
+		padding-right: 8px;
+	}
+}
+
 .ui-priority-secondary,
 .ui-widget-content .ui-priority-secondary,
 .ui-widget-header .ui-priority-secondary {
@@ -258,6 +299,18 @@ div + a > .ui-button {
 
     &:hover {
     	color: $ui-priority-secondary-hover !important;
+    }
+}
+
+.ui-widget-header .ui-priority-secondary{
+	padding: 0.2em 0.4em;
+    border-radius: $button-radius;
+    color: $item-header-color !important;
+    background: darken($item-header-bg, 5%);
+
+    &:hover {
+    	color: $item-header-color !important;
+    	background: darken($item-header-bg, 10%);
     }
 }
 
@@ -297,15 +350,36 @@ button.ui-state-disabled{
 }
 
 .ui-slider .ui-slider-handle{
-	background: darken($link, 30%);
-	border-radius: 3px;
+	//background: darken($link, 30%);
+	//border-radius: 3px;
+	// border-radius: 50%; 
+}
+.ui-slider .ui-slider-handle {
+	width: 17px;
+	height: 21px;
 	border-width: 0;
 	outline: none;
+	border: none;
+	background-color: transparent;
+	background: url(images/slider_handles.png) 0 0 no-repeat;
+}
+
+body.hidpi-device .ui-slider .ui-slider-handle {
+	background: url(images/slider_handles2x.png) 0 0 no-repeat;
+	background-size: 34px 21px;
 }
 
 .ui-slider-horizontal {
 	background: $light-text-color;
 	border: none;
+	height: 8px; 
+	.ui-slider-handle {
+		top: -5px; 
+	}
+}
+.ui-slider-horizontal, 
+.ui-slider-range {
+	border-radius: 4px; 
 }
 
 /**
@@ -372,6 +446,7 @@ button.ui-state-disabled{
 	}
 
 	& .ui-menu-item {
+
 		a {
 			//padding: 0.15em 0.75em 0.15em 0.6em !important; 
 			color: $text-color;
@@ -486,6 +561,7 @@ button.ui-state-disabled{
 	text-transform: uppercase;
 	font-size: 0.8em;
 	letter-spacing: 1px;
+	max-width: 400px;
 }
 	.ui-tooltip, .arrow:after {
 		background: $med-blue; 
@@ -670,7 +746,9 @@ button.ui-state-disabled{
 
 .ui-datepicker td .ui-state-highlight,
 .ui-datepicker td .ui-state-highlight:hover {
-	border: $datepicker-td-border !important;
+	border: $datepicker-td-hover-border !important;
+	background: $datepicker-td-hover-bg !important;
+	color: $datepicker-td-hover-color !important;
 }
 
 .ui-datepicker td .ui-state-active,
@@ -749,4 +827,10 @@ Full screen TinyMCE
  */
 #mce_fullscreen_container {
 	top: $masthead-height !important;
+}
+
+a.tooltip:hover {
+	border: none;
+	background: inherit;
+	cursor: help;
 }

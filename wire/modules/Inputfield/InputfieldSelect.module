@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * Base for selection form inputs, which by default behaves as a regular <select>
@@ -50,13 +50,13 @@ class InputfieldSelect extends Inputfield {
 	 * Note that optgroups may not be applicable to other Inputfields that descend from InputfieldSelect.
 	 *
 	 * @param string $value Value that the option submits
-	 * @param string $label Optional label associated with the value (if null, value will be used as the label)
+	 * @param string $label|array Optional label associated with the value (if null, value will be used as the label)
 	 * @param array $attributes Optional attributes to be associated with this option (i.e. a 'selected' attribute for an <option> tag)
 	 * @return $this
 	 *
 	 */
 	public function addOption($value, $label = null, array $attributes = null) {
-		if(is_null($label)) $label = $value; 
+		if(is_null($label) || (is_string($label) && !strlen($label))) $label = $value; 
 		$this->options[$value] = $label; 	
 		if(!is_null($attributes)) $this->optionAttributes[$value] = $attributes; 
 		return $this; 
@@ -169,17 +169,23 @@ class InputfieldSelect extends Inputfield {
 	public function isOption($value, array $options = null) {
 
 		if(is_null($options)) $options = $this->options; 
-		if(array_key_exists("$value", $options)) return true; 
-
-		// descend into optgroups
 		$is = false;
-		foreach($options as $option) {
-			if(!is_array($option)) continue;
-			if($this->isOption($value, $option)) {
-				$is = true; 
-				break;
+		
+		foreach($options as $key => $option) {
+			if(is_array($option)) {
+				// fieldgroup
+				if($this->isOption($value, $option)) {
+					$is = true;
+					break;
+				}
+			} else {
+				if("$value" === "$key") {
+					$is = true;
+					break;
+				}
 			}
 		}
+		
 		return $is; 
 	}
 
@@ -208,6 +214,15 @@ class InputfieldSelect extends Inputfield {
 		}
 
 		return "$value" == (string) $this->value; 
+	}
+	
+	public function isOptionDisabled($value) {
+		$disabled = false;
+		if(isset($this->optionAttributes[$value])) {
+			$attrs = $this->optionAttributes[$value];
+			if(!empty($attrs['disabled'])) $disabled = true; 
+		}
+		return $disabled;
 	}
 
 	protected function renderOptions($options, $allowBlank = true) {
@@ -269,7 +284,8 @@ class InputfieldSelect extends Inputfield {
 		$attrs = $this->getAttributes();
 		unset($attrs['value']); 
 
-		$out =	"\n<select " . $this->getAttributesString($attrs) . ">" . 
+		$out =	
+			"\n<select " . $this->getAttributesString($attrs) . ">" . 
 			$this->renderOptions($this->options) . 
 			"\n</select>";
 
@@ -277,11 +293,30 @@ class InputfieldSelect extends Inputfield {
 	}
 
 	public function ___renderValue() {
-		$out = "<ul>";
+		
+		$out = '';
+		
 		foreach($this->options as $value => $label) {
-			if($this->isOptionSelected($value)) $out .= "<li>" . htmlspecialchars($label, ENT_QUOTES, "UTF-8") . "</li>"; 
+			
+			$o = '';
+			
+			if(is_array($label)) {
+				foreach($label as $k => $v) {
+					if($this->isOptionSelected($k)) {
+						$o = trim($value, ' :') . ": $v";
+					}
+				}
+			} else {
+				if($this->isOptionSelected($value)) $o = $label;
+			}
+			
+			if(strlen($o)) {
+				$out .= "<li>" . $this->wire('sanitizer')->entities($o) . "</li>";
+			}
 		}
-		$out .= "</ul>";	
+	
+		if(strlen($out)) $out = "<ul>$out</ul>";
+		
 		return $out; 
 	}
 
@@ -376,6 +411,20 @@ class InputfieldSelect extends Inputfield {
 	}
 
 	public function setAttribute($key, $value) {
+		if($key == 'value') {
+			if(is_object($value) || (is_string($value) && strpos($value, '|'))) {
+				$value = (string) $value;
+				if($this instanceof InputfieldHasArrayValue) {
+					$value = explode('|', $value);
+				}
+			} else if(is_array($value)) {
+				if($this instanceof InputfieldHasArrayValue) {
+					// ok
+				} else {
+					$value = reset($value); 
+				}
+			}
+		}
 		return parent::setAttribute($key, $value);
 	}
 
@@ -421,13 +470,26 @@ class InputfieldSelect extends Inputfield {
 
 			$isInputfieldSelect = $this->className() == 'InputfieldSelect';
 
-			$f = wire('modules')->get('InputfieldTextarea'); 
+			$f = $this->wire('modules')->get('InputfieldTextarea'); 
 			$f->attr('name', 'options'); 
-			$value = implode("\n", $this->options); 
+			$value = '';
+			$options = array();
+			foreach($this->options as $key => $option) {
+				if(is_array($option)) {
+					$value .= "$key\n";
+					foreach($option as $o) {
+						$value .= "   $o\n";
+					}
+				} else {
+					$value .= "$option\n";
+				}
+			}
+			$value = trim($value);
 			if(empty($value)) {
 				$value = "=\nOption 1\nOption 2\nOption 3";
 				if(!$isInputfieldSelect) $value = ltrim($value, '='); 
 			}
+			$f->attr('value', $value); 
 			$f->attr('rows', 10); 
 			$f->label = $this->_('Options');
 			$f->description = $this->_('Enter the options that may be selected, one per line.');

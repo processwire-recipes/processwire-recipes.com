@@ -1,25 +1,58 @@
-<?php
+<?php 
 
 /**
  * The Users class serves as the $users API variable. 
+ * 
+ * #pw-summary Manages all users (User objects) in ProcessWire. 
  *
- * @method PageArray find() find($selectorString) Return the user(s) matching the the given selector query.
- * @method User get() get(mixed $selector) Return user by given name, numeric ID or a selector string.
+ * @method PageArray find($selector) Return the User(s) matching the the given selector query.
+ * @method User add($name) Add new User with the given name and return it.
+ * @method bool save($user) Save given User.
+ * @method bool delete($user) Delete the given User.
+ * @method array saveReady($user) Hook called just before a User is saved #pw-hooker
+ * @method void saved($user, array $changes) Hook called after a User has been saved #pw-hooker
+ * @method void added($user) Hook called just after a User is added #pw-hooker
+ * @method void deleteReady($user) Hook called before a User is deleted #pw-hooker
+ * @method void deleted($user) Hook called after a User is deleted #pw-hooker
  *
  */
 
 class Users extends PagesType {
 
-	protected $currentUser = null; 
+	/**
+	 * Current user
+	 * 
+	 * @var User|null
+	 * 
+	 */
+	protected $currentUser = null;
+
+	/**
+	 * Cached guest user
+	 * 
+	 * @var User|null
+	 * 
+	 */
 	protected $guestUser = null;
+
+	/**
+	 * Construct
+	 * 
+	 * @param ProcessWire $wire
+	 * @param array $templates
+	 * @param array $parents
+	 * 
+	 */
+	public function __construct(ProcessWire $wire, $templates = array(), $parents = array()) {
+		parent::__construct($wire, $templates, $parents);
+		$this->setPageClass('User'); 
+	}
 	
 	/**
-	 * Like find() but returns only the first match as a Page object (not PageArray)
-	 *
-	 * This is an alias of the findOne() method for syntactic convenience and consistency.
-	 *
+	 * Get the user by name, ID or selector string
+	 * 
 	 * @param string $selectorString
-	 * @return Page|null
+	 * @return Page|NullPage|null
 	 */
 	public function get($selectorString) {
 		$user = parent::get($selectorString);
@@ -50,11 +83,13 @@ class Users extends PagesType {
 		}
 		
 		$this->currentUser = $user; 
-		Wire::setFuel('user', $user); 
+		$this->wire('user', $user); 
 	}
 
 	/**
 	 * Ensure that every user loaded has at least the 'guest' role
+	 * 
+	 * @param Page $page
 	 *
 	 */
 	protected function loaded(Page $page) {
@@ -84,8 +119,25 @@ class Users extends PagesType {
 	public function getGuestUser() {
 		if($this->guestUser) return $this->guestUser; 
 		$this->guestUser = $this->get($this->config->guestUserPageID); 
-		if(defined("PROCESSWIRE_UPGRADE") && !$this->guestUser || !$this->guestUser->id) $this->guestUser = new User(); // needed during upgrade
+		if(defined("PROCESSWIRE_UPGRADE") && !$this->guestUser || !$this->guestUser->id) {
+			$this->guestUser = $this->newUser(); // needed during upgrade
+		}
 		return $this->guestUser; 
+	}
+
+	/**
+	 * Return new User instance
+	 * 
+	 * #pw-internal
+	 * 
+	 * @return User
+	 * 
+	 */
+	public function newUser() {
+		return $this->wire('pages')->newPage(array(
+			'template' => 'user',
+			'pageClass' => 'User'
+		));
 	}
 
 }

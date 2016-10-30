@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Language Parser
@@ -7,12 +7,9 @@
  *
  * Return the results by calling $parser->getUntranslated() and $parser->getComments();
  *
- * ProcessWire 2.x 
- * Copyright (C) 2012 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -137,7 +134,7 @@ class LanguageParser extends Wire {
 		// Find $this->_('text') style matches
 		preg_match_all(	'/(>_)\(\s*' .				// $this->_( 
 				'([\'"])(.+?)(?<!\\\\)\\2' . 		// "text"
-				'\)+(.*)$/m', 				// ) and everything else
+				'\s*\)+(.*)$/m',					// and everything else
 				$data, $matches[1]); 
 
 		// Find __('text', textdomain) style matches
@@ -226,7 +223,11 @@ class LanguageParser extends Wire {
 		$this->numFound++;
 
 		// check if there are comments in the $tail and record them if so
-		if(($pos = strpos($tail, '//')) !== false) $comments = substr($tail, $pos+2); 
+		if(($pos = strpos($tail, '//')) !== false) {
+			if(preg_match('![^:"\']//(.+)$!', $tail, $matches)) {
+				$comments = $matches[1];
+			}
+		}
 
 		// check if a plural was found and set an automatic comment to indicate which is which
 		if($plural) {

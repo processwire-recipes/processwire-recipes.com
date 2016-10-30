@@ -1,13 +1,10 @@
-<?php
+<?php 
 
 /**
  * ProcessWire WireMail 
  *
- * ProcessWire 2.x 
- * Copyright (C) 2014 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  * USAGE:
  *
@@ -35,6 +32,8 @@
  *
  * // note that the send() function always returns the quantity of messages sent
  * $numSent = $mail->send();
+ * 
+ * @method int send()
  *
  */
 
@@ -74,7 +73,10 @@ class WireMail extends WireData implements WireMailInterface {
 	protected function sanitizeEmail($email) {
 		$email = strtolower(trim($email)); 
 		$clean = $this->wire('sanitizer')->email($email); 
-		if($email != $clean) throw new WireException("Invalid email address"); 
+		if($email != $clean) {
+			$clean = $this->wire('sanitizer')->entities($email); 
+			throw new WireException("Invalid email address ($clean)");
+		}
 		return $clean;
 	}
 
@@ -136,7 +138,7 @@ class WireMail extends WireData implements WireMailInterface {
 	 * 	3. Non-associative array of #1. 
 	 * 	4. Associative array of (email => name)
 	 *	5. NULL (default value, to clear out any previously set values)
-	 * @param string $name Optionally provide a FROM name, applicable
+	 * @param string $name Optionally provide a TO name, applicable
 	 *	only when specifying #1 (single email) for the first argument. 
 	 * @return this 
 	 * @throws WireException if any provided emails were invalid

@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Pages Access
@@ -15,14 +15,11 @@
  * 	- templates_id: The template that sets this pages access
  *
  * Pages using templates that already define their access (determined by $template->useRoles) 
- * are ommitted from the pages_access table, as they aren't necessary. 
+ * are omitted from the pages_access table, as they aren't necessary. 
  *
- * ProcessWire 2.x 
- * Copyright (C) 2011 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -102,10 +99,10 @@ class PagesAccess extends Wire {
 				"GROUP BY pages.id ";
 
 		$query = $database->prepare($sql); 
-		$query->bindValue(":parent_id", $parent_id, PDO::PARAM_INT);
+		$query->bindValue(":parent_id", $parent_id, \PDO::PARAM_INT);
 		$query->execute();
 
-		while($row = $query->fetch(PDO::FETCH_NUM)) {
+		while($row = $query->fetch(\PDO::FETCH_NUM)) {
 
 			list($id, $templates_id, $numChildren) = $row;
 
@@ -188,7 +185,7 @@ class PagesAccess extends Wire {
 		if(!$accessParent->id || $accessParent->id == $page->id) {
 			// page is the same as the one that defines access, so it doesn't need to be here
 			$query = $database->prepare("DELETE FROM pages_access WHERE pages_id=:page_id"); 	
-			$query->bindValue(":page_id", $page_id, PDO::PARAM_INT);
+			$query->bindValue(":page_id", $page_id, \PDO::PARAM_INT);
 			$query->execute();
 
 		} else {
@@ -199,8 +196,8 @@ class PagesAccess extends Wire {
 					"ON DUPLICATE KEY UPDATE templates_id=VALUES(templates_id) ";
 			
 			$query = $database->prepare($sql);
-			$query->bindValue(":page_id", $page_id, PDO::PARAM_INT);
-			$query->bindValue(":template_id", $template_id, PDO::PARAM_INT);
+			$query->bindValue(":page_id", $page_id, \PDO::PARAM_INT);
+			$query->bindValue(":template_id", $template_id, \PDO::PARAM_INT);
 			$query->execute();
 		}
 
@@ -226,7 +223,7 @@ class PagesAccess extends Wire {
 	public function deletePage(Page $page) {
 		$database = $this->wire('database');
 		$query = $database->prepare("DELETE FROM pages_access WHERE pages_id=:page_id"); 
-		$query->bindValue(":page_id", $page->id, PDO::PARAM_INT); 
+		$query->bindValue(":page_id", $page->id, \PDO::PARAM_INT); 
 		$query->execute();
 	}
 

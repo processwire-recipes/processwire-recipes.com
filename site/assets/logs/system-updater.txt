@@ -2,3 +2,5 @@
 2014-11-15 11:28:28	Update #9: Initializing update
 2014-11-15 11:28:28	Update #9: Added: Pages > Recent
 2014-11-15 11:28:28	Update #9: Completed!
+2016-10-30 14:51:59	Detected core version change 3.0.36 => 2.8.35
+2016-10-30 14:51:59	Cleared file compiler cache

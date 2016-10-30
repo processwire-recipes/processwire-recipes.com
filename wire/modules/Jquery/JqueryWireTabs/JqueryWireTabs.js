@@ -1,13 +1,10 @@
 /**
-  * jQuery Tabs for ProcessWire
-  *
-  * ProcessWire 2.x
-  * Copyright (C) 2014 by Ryan Cramer
-  * Licensed under GNU/GPL v2, see LICENSE.TXT
-  *
-  * http://processwire.com
-  *
-  */
+ * jQuery Tabs for ProcessWire
+ *
+ * ProcessWire 3.x (development), Copyright 2015 by Ryan Cramer
+ * https://processwire.com
+ * 
+ */
 (function($) {
 
 	$.fn.WireTabs = function(customOptions) {
@@ -21,8 +18,8 @@
 			id: '' // id for tabList. if already exists, existing tabList will be used
 		};
 		
-		if(config.JqueryWireTabs.rememberTabs != "undefined") {
-			options.rememberTabs = config.JqueryWireTabs.rememberTabs;
+		if(ProcessWire.config.JqueryWireTabs.rememberTabs != "undefined") {
+			options.rememberTabs = ProcessWire.config.JqueryWireTabs.rememberTabs;
 		}
 		var totalTabs = 0; 
 
@@ -38,7 +35,7 @@
 			function init() {
 
 				if(!options.items) return;
-				if(options.items.size() < 2) return;
+				if(options.items.length < 1) return;
 				
 				if(options.id.length) {
 					$tabList = $("#" + options.id);
@@ -74,9 +71,10 @@
 					}
 				}
 				if($rememberTab == null && cookieTab.length > 0 && options.rememberTabs > -1) $rememberTab = $tabList.find("a#_" + cookieTab);
-				if($rememberTab && $rememberTab.size() > 0) {
+				if($rememberTab && $rememberTab.length > 0) {
 					$rememberTab.click();
-					if(options.rememberTabs == 0) setTabCookie(''); // don't clear cookie when rememberTabs=1, so it continues
+					if (options.rememberTabs == 0) setTabCookie(''); // don't clear cookie when rememberTabs=1, so it continues
+					setTimeout(function() { $rememberTab.click(); }, 200); // extra backup, necessary for some event monitoring
 				} else {
 					$tabList.children("li:first").children("a").click();
 				}
@@ -99,6 +97,13 @@
 						.html(title)
 						.click(tabClick); 
 					$tabList.append($("<li></li>").append($a)); 
+				}
+				var tip = $t.attr('data-tooltip'); 
+				if($t.hasClass('WireTabTip') || tip) {
+					// if the tab being added has the class 'WireTabTip' or has a data-tooltip attribute
+					// then display a tooltip with the tab
+					$a.addClass('tooltip');
+					$a.attr('title', tip ? tip : title); 
 				}
 				$t.hide();
 				// the following removed to prevent DOM manipulation if the tab content:

@@ -1,15 +1,12 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Page Comparison
  *
  * Provides implementation for Page comparison functions.
  *
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
  *
  */
 
@@ -30,7 +27,7 @@ class PageComparison {
 		if(is_int($status)) {
 			return ((bool) ($page->status & $status)); 
 
-		} else if(is_string($status) && wire('sanitizer')->name($status) == $status) {
+		} else if(is_string($status) && $page->wire('sanitizer')->name($status) == $status) {
 			// valid template name or status name
 			if($page->template->name == $status) return true; 
 
@@ -58,7 +55,7 @@ class PageComparison {
 				// exit early for simple path comparison
 				if(substr($s, 0, 1) == '/' && $page->path() == (rtrim($s, '/') . '/')) return true; 
 				if(!Selectors::stringHasOperator($s)) return false;
-				$selectors = new Selectors($s); 
+				$selectors = $page->wire(new Selectors($s)); 
 				
 			} else if(is_int($s)) {
 				// exit early for simple ID comparison
@@ -79,7 +76,7 @@ class PageComparison {
 			$name = $selector->field;
 			if(in_array($name, array('limit', 'start', 'sort', 'include'))) continue; 
 			$matches = true; 
-			$value = $page->get($name); 
+			$value = $page->getUnformatted($name); 
 			
 			if(is_object($value)) {
 				// if the current page value resolves to an object

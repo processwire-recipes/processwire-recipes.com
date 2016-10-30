@@ -1,4 +1,3 @@
-
 /**
  * Notifications for ProcessWire
  *
@@ -11,6 +10,7 @@ var Notifications = {
 	options: { 				// options that may be passed to init(), these are the defaults:
 		ajaxURL: './', 		// URL to poll for ajax updates
 		version: 1, 		// notifications version 
+		reverse: 0, 
 		updateLast: 0, 
 		updateDelay: 5000, 
 		updateDelayFast: 1550, 
@@ -22,7 +22,7 @@ var Notifications = {
 		ghostFadeSpeed: 'fast',
 		ghostOpacity: 0.9,
 		ghostLimit: 20, 	// max ghosts that that may be shown together
-		processKey: '',		// key for session processes
+		processKey: '',		// key for session processes (NPK.ClassName.pageID.userID.windowName)
 		i18n: {
 			sec: 'sec',
 			secs: 'secs',
@@ -50,6 +50,7 @@ var Notifications = {
 	currentDelay: 0, 		// current updateDelay value
 	turbo: false, 			// whether there is a lot of activity (like with progress bars)
 	timeNow: 0,				// current unix timestamp
+	useSession: false,		// supports use of sessionStorage?
 
 	$menu: null, 			// <div class='NotificationMenu'>
 	$bug: null, 			// <div class='NotificationBug'>
@@ -93,13 +94,13 @@ var Notifications = {
 	
 	setTurboMode: function(turbo) {
 		if(turbo) {
-			console.log('setTurboMode: true'); 
+			// console.log('setTurboMode: true'); 
 			if(Notifications.currentDelay != Notifications.options.updateDelayFast) {
 				Notifications.currentDelay = Notifications.options.updateDelayFast;
 				Notifications.update();
 			}
 		} else {
-			console.log('setTurboMode: false'); 
+			// console.log('setTurboMode: false'); 
 			Notifications.currentDelay = Notifications.options.updateDelay;
 		}
 	},
@@ -177,7 +178,9 @@ var Notifications = {
 
 		var url = "./?Notifications=update&time=" + Notifications.options.updateLast; 
 		if(rm.length) url += '&rm=' + rm;
-		if(Notifications.options.processKey.length) url += '&process=' + Notifications.options.processKey;
+		if(Notifications.useSession && Notifications.options.processKey.length) {
+			url += '&processKey=' + Notifications.options.processKey + "." + sessionStorage.pwWindowName;
+		}
 		
 		$.getJSON(url, function(data) {
 			Notifications._update(data);
@@ -199,6 +202,7 @@ var Notifications = {
 		var timeNow = parseInt(data.time);
 		var annoy = false;
 		var qty = data.notifications.length;
+		var alerts = [];
 	
 		if(qty > 0) {
 			Notifications.numEmptyRequests = 0;
@@ -214,19 +218,30 @@ var Notifications = {
 
 		for(var n = 0; n < qty; n++) {
 			var notification = data.notifications[n];
-			Notifications._add(notification, true);
-			if(notification.flagNames.indexOf('annoy') > -1) annoy = true;
+			if(notification.flagNames.indexOf('alert') > -1) {
+				alerts[alerts.length] = notification;	
+			} else {
+				Notifications._add(notification, !data.runtime);
+				if (notification.flagNames.indexOf('annoy') > -1) annoy = true;
+			}
 			if(notification.flagNames.indexOf('no-ghost') < 0) Notifications._ghost(notification, n);
 		}
 
 		// if any notifications were marked 'annoy' open the notifications menu now
 		if(annoy && !Notifications.$menu.hasClass('open')) Notifications.$bug.click();
+		if(annoy) window.scrollTo(0, 0);
 
 		// only update time if menu is closed since we already have a timer running, 
 		// and that timer only runs when menu is already open	
 		if(!Notifications.$menu.hasClass("open")) Notifications._updateTime(); 
 		
 		Notifications._updateBug();
+		
+		if(alerts.length) {
+			for (var n = 0; n < alerts.length; n++) {
+				alert(alerts[n].title);
+			}
+		}
 	},
 
 	/**
@@ -332,7 +347,7 @@ var Notifications = {
 				notifications: Notifications.runtime, 
 				runtime: true
 			}; 
-
+			
 			Notifications._update(data, true);
 			
 			if(Notifications.$list.find(".NotificationProgress").length > 0) {
@@ -461,12 +476,16 @@ var Notifications = {
 
 		if(highlight) {
 			$li.hide();
-			Notifications.$list.prepend($li);
+			if(Notifications.options.reverse) {
+				Notifications.$list.append($li);
+			} else {
+				Notifications.$list.prepend($li);
+			}
 			$li.slideDown().effect('highlight', 500); 
 		} else if(exists) {
 			$li.show();
 		} else {
-			Notifications.$list.append($li); 
+			Notifications.$list.append($li);
 		}
 
 	},
@@ -750,6 +769,7 @@ var Notifications = {
 
 		Notifications.$menu.hide();
 		Notifications.$bug.click(Notifications.clickBug);
+		Notifications.useSession = typeof sessionStorage != "undefined";
 		
 		// start polling for new notifications
 		Notifications.updateTimeout = setTimeout(Notifications.update, Notifications.currentDelay); 
@@ -762,6 +782,24 @@ var Notifications = {
 			return false;
 		}); 
 
+		// hide the notifications bug and menu when modal window opened
+		$(document).on('pw-modal-opened', function() {
+			if(Notifications.$bug.is(":visible")) Notifications.$bug.fadeOut().addClass('hidden-for-modal');
+			if(Notifications.$menu.is(":visible")) Notifications.$menu.hide().addClass('hidden-for-modal'); 
+		}).on('pw-modal-closed', function() {
+			if(Notifications.$bug.hasClass('hidden-for-modal')) Notifications.$bug.fadeIn().removeClass('hidden-for-modal');
+			if(Notifications.$menu.hasClass('hidden-for-modal')) Notifications.$menu.slideDown().removeClass('hidden-for-modal');
+		});
+
+		if(Notifications.useSession && Notifications.options.processKey.length) {
+			if(typeof sessionStorage.pwWindowName == "undefined" || sessionStorage.pwWindowName.indexOf('PW') !== 0) {
+				sessionStorage.pwWindowName = 'PW' +
+				Math.floor(Math.random() * 0x10000).toString() +
+				Math.floor(Math.random() * 0x10000).toString();
+			}
+			// for debugging:
+			// $("#ProcessPageSearchQuery").val(sessionStorage.pwWindowName);
+		}
 	}
 };
 

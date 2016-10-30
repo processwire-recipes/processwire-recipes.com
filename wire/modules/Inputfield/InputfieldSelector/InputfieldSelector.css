@@ -127,7 +127,7 @@
 
 .InputfieldSelector a.selector-add {
 	width: 50%; 
-	float: left 
+	float: left;
 	display: block;
 	clear: both; 
 }
@@ -135,10 +135,13 @@
 .InputfieldSelector .selector-counter {
 	width: 50%; 
 	float: right; 
+	margin-bottom: 1em;
 	text-align: right; 
 }
 
 .InputfieldSelector .selector-preview {
+	clear:both;
+	text-align: right;
 	margin-bottom: 0;
 }
 
@@ -155,3 +158,16 @@
 	display: none; 
 	margin-bottom: 0;
 }
+
+.InputfieldSelector .or-notes,
+.InputfieldSelector .notes {
+	clear: both;
+	margin-top: 1em;
+}
+
+.InputfieldSelector .selector-preview-disabled + input + .detail,
+.InputfieldSelector .selector-preview-disabled + input + .notes {
+	position: relative;
+	top: 0.5em;
+}
+

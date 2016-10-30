@@ -1,7 +1,9 @@
-<?php
+<?php 
 
 /**
  * Contains multiple Event objects for a single page
+ * 
+ * @class NotificationArray
  *
  */
 
@@ -93,6 +95,25 @@ class NotificationArray extends WireArray {
 	}
 
 	/**
+	 * Get a notification that contains the given value for $property
+	 * 
+	 * @param string $property
+	 * @param mixed $value
+	 * @return null|Notification
+	 * 
+	 */
+	public function getBy($property, $value) {
+		$found = null;
+		foreach($this as $notification) {
+			if($notification->get($property) == $value) {
+				$found = $notification;
+				break;
+			}
+		}
+		return $found;
+	}
+
+	/**
 	 * Save any changes or additions that were made to these Notifications
 	 * 
 	 * @return bool
@@ -128,7 +149,7 @@ class NotificationArray extends WireArray {
 	 */
 	public function getNew($flag = 'message', $addNow = true) {
 		
-		$notification = new Notification();
+		$notification = $this->wire(new Notification());
 		
 		$notification->setFlags($flag, true); 
 		$notification->created = time();
@@ -244,10 +265,11 @@ class NotificationArray extends WireArray {
 		
 		$clear = in_array('clear', $options);
 		
-		$value = new NotificationArray($this->page);
+		$value = $this->wire(new NotificationArray($this->page));
 		
 		foreach($this as $notification) {
 			if(!$notification->is($type)) continue;
+			/** @var Notification $notification */
 			$value->add($notification);
 			if($clear) $this->remove($notification); // clear global
 		}

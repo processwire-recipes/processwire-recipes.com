@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Text Fieldtype
@@ -8,12 +8,9 @@
  * For documentation about the fields used in this class, please see:  
  * /wire/core/Fieldtype.php
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -63,9 +60,14 @@ class FieldtypeText extends Fieldtype {
 	 *
 	 */
 	public function ___getCompatibleFieldtypes(Field $field) {
-		$fieldtypes = new Fieldtypes();
-		foreach($this->fuel('fieldtypes') as $fieldtype) {
-			if($fieldtype instanceof FieldtypeText) $fieldtypes->add($fieldtype); 
+		$fieldtypes = $this->wire(new Fieldtypes());
+		foreach($this->wire('fieldtypes') as $fieldtype) {
+			if($fieldtype instanceof FieldtypeText) {
+				$fieldtypes->add($fieldtype);
+			} else {
+				$className = $fieldtype->className();
+				if($className == 'FieldtypeSelector') $fieldtypes->add($fieldtype);
+			}
 		}
 		return $fieldtypes; 
 	}
@@ -88,7 +90,7 @@ class FieldtypeText extends Fieldtype {
 
 		if($this->allowTextFormatters() && is_array($field->textformatters)) {
 			foreach($field->textformatters as $name) {
-				if(!$textformatter = $this->fuel('modules')->get($name)) continue; 
+				if(!$textformatter = $this->wire('modules')->get($name)) continue; 
 				$textformatter->formatValue($page, $field, $value); 
 			}
 		}
@@ -97,6 +99,22 @@ class FieldtypeText extends Fieldtype {
 		//if(strlen($field->appendMarkup)) $value .= $field->appendMarkup; 
 
 		return $value; 
+	}
+
+	/**
+	 * Return whether the given value is considered empty or not
+	 *
+	 * This an be anything that might be present in a selector value and thus is
+	 * typically a string. However, it may be used outside of that purpose so you
+	 * shouldn't count on it being a string.
+	 *
+	 * @param Field $field
+	 * @param mixed $value
+	 * @return bool
+	 *
+	 */
+	public function isEmptyValue(Field $field, $value) {
+		return !strlen($value); 
 	}
 
 	/**
@@ -113,7 +131,7 @@ class FieldtypeText extends Fieldtype {
 	 *
 	 */
 	public function getMatchQuery($query, $table, $subfield, $operator, $value) {
-		$ft = new DatabaseQuerySelectFulltext($query); 
+		$ft = $this->wire(new DatabaseQuerySelectFulltext($query)); 
 		$ft->match($table, $subfield, $operator, $value); 
 		return $query; 
 	}
@@ -125,7 +143,7 @@ class FieldtypeText extends Fieldtype {
 	public function getDatabaseSchema(Field $field) {
 		$schema = parent::getDatabaseSchema($field); 
 		$schema['data'] = 'text NOT NULL';
-		$schema['keys']['data_exact'] = 'KEY `data_exact` (`data`(255))'; 
+		$schema['keys']['data_exact'] = 'KEY `data_exact` (`data`(250))'; 
 		$schema['keys']['data'] = 'FULLTEXT KEY `data` (`data`)'; 
 		return $schema;
 	}
@@ -155,6 +173,7 @@ class FieldtypeText extends Fieldtype {
 				$f->setAttribute('value', is_array($field->textformatters) ? $field->textformatters : array()); 
 
 				$f->description = $this->_('If you want to apply any automatic formatting to the field when it is prepared for output, select one or more text formatters above. If you select more than one, drag them into the order they should be applied.'); 
+				$f->notes = $this->_('For plain text fields that will not contain HTML or markup, we recommend selecting the **HTML Entity Encoder** option above.');
 
 				$inputfields->append($f);
 			}

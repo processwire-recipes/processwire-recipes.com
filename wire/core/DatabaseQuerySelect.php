@@ -1,4 +1,4 @@
-<?php
+<?php 
 /**
  * ProcessWire DatabaseQuerySelect
  *
@@ -9,12 +9,39 @@
  * of what other methods/objects have done to it. It also means being able
  * to build a complex query without worrying about correct syntax placement.
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
  * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ * 
+ * @property array $select
+ * @property array $join
+ * @property array $from
+ * @property array $leftjoin
+ * @property array $where
+ * @property array $orderby
+ * @property array $groupby
+ * @property array $limit
+ * @property string $comment Comments for query
+ * 
+ * @method $this select($sql, array $params = array())
+ * @method $this from($sql)
+ * @method $this join($sql, array $params = array())
+ * @method $this leftjoin($sql, array $params = array())
+ * @method $this where($sql, array $params = array())
+ * @method $this groupby($sql)
+ * @method $this limit($sql)
+ *
+ * Below are Properties populated by DatabaseQuerySelect objects created by PageFinder.
+ * This is what gets passed to Fieldtype::getMatchQuery() method calls as properties
+ * available from the $query argument. 
+ * 
+ * @property Field $field Field object that is referenced by this query.
+ * @property string $group Selector group (for OR-groups) if applicable.
+ * @property Selector $selector Selector object referenced by this query.
+ * @property Selectors $selectors Original selectors (all) that $selector is part of. 
+ * @property DatabaseQuerySelect $parentQuery Parent query object, if applicable.
  *
  */
 class DatabaseQuerySelect extends DatabaseQuery {
@@ -41,7 +68,8 @@ class DatabaseQuerySelect extends DatabaseQuery {
 	 */
 	public function getQuery() {
 
-		$sql = 	$this->getQuerySelect() . 
+		$sql = 	
+			$this->getQuerySelect() . 
 			$this->getQueryFrom() . 
 			$this->getQueryJoin($this->join, "JOIN") . 
 			$this->getQueryJoin($this->leftjoin, "LEFT JOIN") . 
@@ -66,11 +94,19 @@ class DatabaseQuerySelect extends DatabaseQuery {
 	 * @param string|array $value
 	 * @param bool $prepend Should the value be prepended onto the existing value? default is to append rather than prepend.
 	 * 	Note that $prepend is applicable only when you pass this method a string. $prepend is ignored if you pass an array. 
-	 * @return this
+	 * @return $this
 	 *
 	 */
 	public function orderby($value, $prepend = false) {
-
+	
+		if(is_object($value)) {
+			if($value instanceof DatabaseQuerySelect) {
+				$value = $value->orderby;
+			} else {
+				// invalid
+				return $this;
+			}
+		}
 		$oldValue = $this->get('orderby'); 
 
 		if(is_array($value)) {
@@ -101,7 +137,7 @@ class DatabaseQuerySelect extends DatabaseQuery {
 		if(!$sql) $sql = "SELECT ";
 
 		// $config->dbCache option for debugging purposes
-		if(wire('config')->dbCache === false) $sql .= "SQL_NO_CACHE "; 
+		if($this->wire('config')->dbCache === false) $sql .= "SQL_NO_CACHE "; 
 
 		foreach($select as $s) $sql .= "$s,";
 		$sql = rtrim($sql, ",") . " "; 

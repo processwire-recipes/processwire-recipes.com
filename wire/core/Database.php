@@ -1,38 +1,48 @@
-<?php
+<?php 
 
 /**
  * ProcessWire MySQLi Database
  *
  * Serves as a wrapper to PHP's mysqli classes
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2012 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
  * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
-
-
 
 /**
  * Database class provides a layer on top of mysqli
  *
  */
-class Database extends mysqli implements WireDatabase {
+class Database extends \mysqli implements WireDatabase {
 
 	/**
 	 * Log of all queries performed in this instance
 	 *
 	 */
-	static protected $queryLog = array();
+	protected $queryLog = array();
 
 	/**
 	 * Should WireDatabaseException be thrown on error?
 	 *
 	 */
-	protected $throwExceptions = true; 
+	protected $throwExceptions = true;
+
+	/**
+	 * @var ProcessWire
+	 * 
+	 */
+	protected $wire;
+
+	/**
+	 * @var bool
+	 * 
+	 */
+	protected $debug = false;
 
 	/**
 	 * Construct the Database 
@@ -56,6 +66,7 @@ class Database extends mysqli implements WireDatabase {
 
 		if(is_object($host) && $host->dbHost) {
 			$config = $host;
+			$this->debug = $config->debug; 
 			$host = $config->dbHost; 
 			$user = $config->dbUser; 
 			$pass = $config->dbPass; 
@@ -72,7 +83,7 @@ class Database extends mysqli implements WireDatabase {
 				else if($config->dbSetNamesUTF8) $this->query("SET NAMES 'utf8'");
 		}
 	}
-
+	
 	/**
 	 * Overrides default mysqli query method so that it also records and times queries. 
 	 *
@@ -91,7 +102,7 @@ class Database extends mysqli implements WireDatabase {
 
 		if(is_object($sql) && $sql instanceof DatabaseQuery) $sql = $sql->getQuery();
 
-		if(wire('config')->debug) {
+		if($this->debug) {
 			$timerKey = Debug::timer();
 			if(!$timerFirstStartTime) $timerFirstStartTime = $timerKey; 
 		} else $timerKey = null; 
@@ -99,7 +110,7 @@ class Database extends mysqli implements WireDatabase {
 		$result = @parent::query($sql, $resultmode); 
 
 		if($result) {
-			if(wire('config')->debug) { 
+			if($this->debug) { 
 				if(isset($result->num_rows)) $sql .= " [" . $result->num_rows . " rows]";
 				if(!is_null($timerKey)) {
 					$elapsed = Debug::timer($timerKey); 
@@ -107,11 +118,11 @@ class Database extends mysqli implements WireDatabase {
 					$timerTotalSinceStart = Debug::timer() - $timerFirstStartTime; 
 					$sql .= " [{$elapsed}s, {$timerTotalQueryTime}s, {$timerTotalSinceStart}s]";
 				}
-				self::$queryLog[] = $sql; 
+				$this->queryLog($sql); 
 			}
 
 		} else if($this->throwExceptions) {
-			throw new WireDatabaseException($this->error . (wire('config')->debug ? "\n$sql" : '')); 
+			throw new WireDatabaseException($this->error . ($this->debug ? "\n$sql" : '')); 
 		}
 
 		return $result; 
@@ -122,11 +133,37 @@ class Database extends mysqli implements WireDatabase {
 	 *
 	 * Active in ProcessWire debug mode only
 	 *
+	 * @param ProcessWire $wire ProcessWire instance, if omitted returns queries for all instances
 	 * @return array
+	 * @deprecated
 	 *
 	 */
-	static public function getQueryLog() {
-		return self::$queryLog; 
+	static public function getQueryLog(ProcessWire $wire = null) {
+		if($wire) {
+			return $wire->database->queryLog();
+		} else {
+			$log = array();
+			foreach(ProcessWire::getInstances() as $wire) {
+				$log = array_merge($log, $wire->database->queryLog());
+			}
+		}
+		return $log;
+	}
+
+	/**
+	 * Log a query or return the query log
+	 * 
+	 * @param string $sql Omit to instead return the query log
+	 * @return array|bool Returns query log array when $sql argument is omitted
+	 * 
+	 */
+	public function queryLog($sql = '') {
+		if($sql) {
+			$this->queryLog[] = $sql;
+			return true;
+		} else {
+			return $this->queryLog;
+		}
 	}
 
 	/**

@@ -1,0 +1,16 @@
+2016-10-30 14:52:00	marcus	http://pwr.local/processwire/setup/upgrades/	Saved module info caches
+2016-10-30 14:52:00	marcus	http://pwr.local/processwire/setup/upgrades/	Saved module 'SystemUpdater' config data
+2016-10-30 14:52:10	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:52:12	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:52:14	marcus	http://pwr.local/processwire/module/?reset=1&edit=ProcessWireUpgrade	Saved module info caches
+2016-10-30 14:52:19	marcus	http://pwr.local/processwire/setup/upgrades/	Saved module info caches
+2016-10-30 14:52:28	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:52:29	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:52:31	marcus	http://pwr.local/processwire/module/?reset=1&edit=TemplateDataProviders	Saved module info caches
+2016-10-30 14:52:38	marcus	http://pwr.local/processwire/setup/upgrades/	Saved module info caches
+2016-10-30 14:52:44	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:52:47	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:52:52	marcus	http://pwr.local/processwire/setup/upgrades/	Saved module info caches
+2016-10-30 14:52:57	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:52:59	marcus	http://pwr.local/processwire/module/download/	Saved module info caches
+2016-10-30 14:53:01	marcus	http://pwr.local/processwire/module/?reset=1&edit=TextformatterParsedown	Saved module info caches

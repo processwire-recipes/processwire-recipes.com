@@ -1,4 +1,4 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Fuel
@@ -7,16 +7,53 @@
  * The objects contained in fuel provide access to the ProcessWire API. For instance, $pages,
  * $users, $fields, and so on. The fuel is required to keep the system running, so to speak.
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2013 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
+ * This file is licensed under the MIT license
+ * https://processwire.com/about/license/mit/
  * 
- * http://processwire.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ * 
+ * @property ProcessWire $wire
+ * @property Database $db
+ * @property WireDatabasePDO $database
+ * @property Session $session
+ * @property Notices $notices
+ * @property Sanitizer $sanitizer
+ * @property Fields $fields
+ * @property Fieldtypes $fieldtypes
+ * @property Fieldgroups $fieldgroups
+ * @property Templates $templates
+ * @property Pages $pages
+ * @property Page $page
+ * @property Process $process
+ * @property Modules $modules
+ * @property Permissions $permissions
+ * @property Roles $roles
+ * @property Users $users
+ * @property User $user
+ * @property WireCache $cache
+ * @property WireInput $input
+ * @property Languages $languages If LanguageSupport installed
+ * @property Config $config
+ * @property Fuel $fuel
  *
  */
-class Fuel implements IteratorAggregate {
+class Fuel implements \IteratorAggregate {
 
+	/**
+	 * Fuel items indexed by name
+	 * 
+	 * @var array
+	 * 
+	 */
 	protected $data = array();
+
+	/**
+	 * Array where name is item name, and value is bool as to whether it's locked or not
+	 * 
+	 * @var array
+	 * 
+	 */
 	protected $lock = array();
 
 	/**
@@ -57,10 +94,11 @@ class Fuel implements IteratorAggregate {
 	}
 
 	public function getIterator() {
-		return new ArrayObject($this->data); 
+		return new \ArrayObject($this->data); 
 	}
 
 	public function getArray() {
 		return $this->data; 
 	}
+	
 }

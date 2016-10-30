@@ -1,16 +1,13 @@
-<?php
+<?php 
 
 /**
  * ProcessWire Strip Tags Module
  *
  * Strips tags, except those allowed in the module configuration.
  * 
- * ProcessWire 2.x 
- * Copyright (C) 2010 by Ryan Cramer 
- * Licensed under GNU/GPL v2, see LICENSE.TXT
- * 
- * http://www.processwire.com
- * http://www.ryancramer.com
+ * ProcessWire 2.8.x, Copyright 2016 by Ryan Cramer
+ * https://processwire.com
+ *
  *
  */
 
@@ -32,11 +29,11 @@ class TextformatterStripTags extends Textformatter implements ConfigurableModule
 		$str = strip_tags($str, $this->data['allowedTags']); 
 	}
 
-        public static function getModuleConfigInputfields(array $data) {
-		$inputfields = new InputfieldWrapper();
+	public function getModuleConfigInputfields(array $data) {
+		$inputfields = $this->wire(new InputfieldWrapper());
 		$name = "allowedTags";
 		if(!isset($data[$name])) $data[$name] = '';
-		$f = wire('modules')->get('InputfieldText');
+		$f = $this->wire('modules')->get('InputfieldText');
 		$f->attr('name', $name);
 		$f->attr('value', $data[$name]);
 		$f->label = 'Allowed Markup Tags';
@@ -48,11 +45,11 @@ class TextformatterStripTags extends Textformatter implements ConfigurableModule
 		return $inputfields;
 	}
 
-        public function __get($key) {
+	public function __get($key) {
 		return isset($this->data[$key]) ? $this->data[$key] : null;
 	}
 
-        public function __set($key, $value) {
+	public function __set($key, $value) {
 		$this->data[$key] = $value; 
 	}
 

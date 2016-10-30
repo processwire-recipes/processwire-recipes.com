@@ -1,4 +1,4 @@
-<?php 
+<?php  
 if(!defined("PROCESSWIRE_INSTALL")) die(); 
 if(!isset($title)) $title = 'Title';
 if(!isset($formAction)) $formAction = './install.php';
