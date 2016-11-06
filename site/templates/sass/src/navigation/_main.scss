@@ -32,6 +32,8 @@
 	}
 
 	&.nav-main__item--current {
+		border-left: 1px solid $white;
+		border-right: 1px solid $white;
 		background: rgba($white, .25);
 	}
 }
