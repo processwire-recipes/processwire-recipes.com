@@ -3,7 +3,7 @@
 <head>
 	<meta charset="UTF-8">
 	<title>{{ pageTitle }} | {{ title }}</title>
-	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+<!--	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">-->
 	<link href="{{ templates }}build/css/pwr.css" rel="stylesheet" />
 
 	<link rel="icon" type="image/png" href="{{ templates }}favicons/favicon-32x32.png" sizes="32x32" />
@@ -14,22 +14,13 @@
 	<meta name="google-site-verification" content="rG3o1FL36k5fLNtPdQkSrZjZotTx92sHCA-Sm-1Bk6M" />
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 
-	<script src="https://ajax.googleapis.com/ajax/libs/webfont/1.5.18/webfont.js"></script>
-	<script>
-		WebFont.load({
-			google: {
-				families:  ['Roboto Slab:400,700']
-			}
-		});
-	</script>
-
 </head>
 <body class="template--{{ template }}">
 
 <header class="header-main">
 
 	<div class="inner">
-		<h1 class="header-main__logo"><a href="{{ frontpage.url }}"><i class="fa fa-book" aria-hidden="true"></i><span class="sr-only">Go to front page of </span> {{ pageTitle }}</a></h1>
+		<h1 class="header-main__logo"><a href="{{ frontpage.url }}"><span class="sr-only">Go to front page of </span> {{ pageTitle }}</a></h1>
 
 		<nav class="nav-main" role="navigation">
 			<ul>
@@ -43,7 +34,7 @@
 		<form class="module-search" action="{{ frontpage.url }}search-results/" method="get">
 			<label for="mainsearch" class="sr-only">Search here for recipes:</label>
 			<input id="mainsearch" type="text" name="q" class="module-search__query" placeholder="Type here..." aria-owns="ajaxSearch_body" aria-autocomplete="inline" required />
-			<button type="submit" tabindex="-1" class="module-search__submit" aria-label="Search"><i class="fa fa-search" aria-hidden="true"></i></button>
+			<button type="submit" tabindex="-1" class="module-search__submit">Search</button>
 		</form>
 
 	</div>
