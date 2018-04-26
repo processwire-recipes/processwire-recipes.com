@@ -3,7 +3,7 @@
 		<footer class="footer-main">
 			<div class="inner">
 				<ul class="nav-foot">
-					<li><a href="{{ legal }}">Impressum & Datenschutzerklärung</a></li>
+					<li><a href="{{ legal }}">Impressum & Datenschutzerklärung / Privacy Policy</a></li>
 					<li><a href="http://processwire.com">Made with ProcessWire</a></li>
 				</ul>
 			</div>
